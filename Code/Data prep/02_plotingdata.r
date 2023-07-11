@@ -314,37 +314,513 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
     mcn$mangrove_area[which(mcn$year==1996)]
     mcn$year <- as.double(mcn$year)
     
-    glimpse(mcn)
+    ## Plot Area timeseries (start)
+    
+        glimpse(mcn)
+        mcn_grouped <- mcn %>%
+        arrange(gridcell_id,year)  %>% group_by(gridcell_id)%>%
+        filter(year %in% c(2007,2020)) %>%
+        mutate(long_change =mangrove_area / dplyr::lag(mangrove_area)-1)
+        mcn_grouped_area <- mcn_grouped
+        q_area <- quantile(mcn_grouped$long_change,probs = c(0.25,0.75), na.rm = TRUE)
+        id_low_area <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change < q_area[1])]
+        id_high_area <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change > q_area[2])]
+        mcn$qarea <- "med"
+        mcn$qarea[which(mcn$gridcell_id %in% id_low_area)] <- "low"
+        mcn$qarea[which(mcn$gridcell_id %in% id_high_area)] <- "high"
+
+        area_mcn_sum <- aggregate(mangrove_area~year+qarea,FUN="sum",data=mcn[which(mcn$year>2006),])
+        area_mcn_sum_temp <- aggregate(sst~year+qarea,FUN="mean",data=mcn[which(mcn$year %in% unique(area_mcn_sum$year)),])
+        area_mcn_sum$sst <- area_mcn_sum_temp$sst
+        glimpse(area_mcn_sum)
+
+        ggplot(area_mcn_sum)+
+        geom_point(aes(x=sst,y=mangrove_area),alpha=0.2)
+        
+        plot_sum_area <- ggplot(area_mcn_sum)+
+        geom_point(aes(x=year,y=mangrove_area,col=factor(qarea)))+
+        #scale_color_scico(palette="hawaii")+
+        geom_smooth(aes(x=year,y=mangrove_area,col=factor(qarea)))+
+        theme_bw()+
+        ylab("Log Mangrove area")
+        plot_sum_area
+
+        a07 <- area_mcn_sum[which(area_mcn_sum$year==2007),c(2,3)]
+        names(a07)[2] <- "a07"
+        area_mcn_sum <- merge(area_mcn_sum,a07,by="qarea",all=T)
+        area_mcn_sum$area_perc <- 100*area_mcn_sum$mangrove_area/area_mcn_sum$a07
+
+        plot_sum_area <- ggplot(area_mcn_sum)+
+        geom_point(aes(x=year,y=area_perc,col=factor(qarea)))+
+        #scale_color_scico(palette="hawaii")+
+        geom_smooth(aes(x=year,y=area_perc,col=factor(qarea)))+
+        theme_bw()+
+        ylab("Log Mangrove area")
+        plot_sum_area
+
+    ## Plot Area timeseries (end)
+
+    ## Plot Area timeseries (start)
+    
+        glimpse(mcn)
+        mcn_grouped <- mcn %>%
+        arrange(gridcell_id,year)  %>% group_by(gridcell_id)%>%
+        filter(year %in% c(2007,2020)) %>%
+        mutate(long_changenp =np / dplyr::lag(np)-1)
+        glimpse(mcn_grouped)
+        mcn_grouped_np <- mcn_grouped
+        q_np <- quantile(mcn_grouped$long_changenp,probs = c(0.25,0.75), na.rm = TRUE)
+        id_low_np <- mcn_grouped$gridcell_id[which(mcn_grouped$long_changenp < q_np[1])]
+        id_high_np <- mcn_grouped$gridcell_id[which(mcn_grouped$long_changenp > q_np[2])]
+        mcn$q_np <- "med"
+        mcn$q_np[which(mcn$gridcell_id %in% id_low_np)] <- "low"
+        mcn$q_np[which(mcn$gridcell_id %in% id_high_np)] <- "high"
+
+        np_mcn_sum <- aggregate(np~year+q_np,FUN="sum",data=mcn[which(mcn$year>2006),])
+        np_mcn_sum_temp <- aggregate(sst~year+q_np,FUN="mean",data=mcn[which(mcn$year %in% unique(np_mcn_sum$year)),])
+        np_mcn_sum$sst <- np_mcn_sum_temp$sst
+        glimpse(np_mcn_sum)
+
+        ggplot(np_mcn_sum)+
+        geom_point(aes(x=sst,y=np),alpha=0.2)
+        
+        plot_sum_np <- ggplot(np_mcn_sum)+
+        geom_point(aes(x=year,y=np,col=factor(q_np)))+
+        #scale_color_scico(palette="hawaii")+
+        geom_smooth(aes(x=year,y=np,col=factor(q_np)))+
+        theme_bw()+
+        ylab("Log Mangrove area")
+        plot_sum_np
+
+        a07 <- np_mcn_sum[which(np_mcn_sum$year==2007),c(2,3)]
+        names(a07)[2] <- "a07"
+        np_mcn_sum <- merge(np_mcn_sum,a07,by="q_np",all=T)
+        np_mcn_sum$np_perc <- 100*np_mcn_sum$np/np_mcn_sum$a07
+
+        plot_sum_np <- ggplot(np_mcn_sum)+
+        geom_point(aes(x=year,y=np_perc,col=factor(q_np)))+
+        #scale_color_scico(palette="hawaii")+
+        geom_smooth(aes(x=year,y=np_perc,col=factor(q_np)))+
+        theme_bw()+
+        ylab("Log Mangrove area")
+        plot_sum_np
+
+
+
+        
+
+
+
+        mcn_grouped_area$long_changenp <- mcn_grouped_np$long_changenp
+
+    ## Plot Area timeseries (end)
+
+    ## Plot dimension changes in map (start)
+        #@tutorial: https://www.joshuastevens.net/cartography/make-a-bivariate-choropleth-map/
+        #install.packages("biscale")
+        
+        #install.packages(c("cowplot", "sf"))
+        library(cowplot)
+        
+        #install.packages("biscale", dependencies = TRUE)
+        library(biscale)
+        library(sf)
+        library("rnaturalearth")
+        library("rnaturalearthdata")
+        library(mapproj)
+        
+        gpkg_file <- "C:/Users/basti/Box/Data/Oceans/Mangroves/Nightlights/grid_nighlights_spatial.gpkg"
+        gridcell_data <- st_read(gpkg_file)
+        gridcell_sf <- st_as_sf(gridcell_data)
+        #glimpse(gridcell_sf)
+        names(gridcell_sf)[1] <- "gridcell_id"
+        
+        
+        # data <- bi_class(mcn[which(mcn$year>2005 & 
+        #                 is.finite(mcn$annual_np_change) & 
+        #                 is.finite(mcn$annual_area_change)),], 
+        #     x = annual_area_change, 
+        #     y = annual_np_change, 
+        #     style = "quantile", dim = 3)
+
+        
+
+        mcn_grouped_area$long_change_neg <- -mcn_grouped_area$long_change #So I plot Area Loss (not Area change)
+
+        data <- bi_class(mcn_grouped_area[which(mcn_grouped_area$year>2010 & 
+                        is.finite(mcn_grouped_area$long_change) & 
+                        is.finite(mcn_grouped_area$long_changenp)),], 
+            x = long_change_neg, 
+            y = long_changenp, 
+            style = "quantile", dim = 3,
+            keep_factors=TRUE)
+        
+        data <- merge(data,gridcell_sf,by="gridcell_id")
+        glimpse(data)
+
+        unique(data$bi_x)
+        gridcell_area_loss_high <- data$gridcell_id[which(data$bi_x==unique(data$bi_x)[1])]
+        gridcell_area_loss_med <- data$gridcell_id[which(data$bi_x==unique(data$bi_x)[3])]
+        gridcell_area_loss_low <- data$gridcell_id[which(data$bi_x==unique(data$bi_x)[2])]
+
+        mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
+        
+        mcn$qarea <- "33 - 66%"
+        mcn$qarea[which(mcn$gridcell_id %in% gridcell_area_loss_low)] <- "0 - 33%" 
+        mcn$qarea[which(mcn$gridcell_id %in% gridcell_area_loss_high)] <-"66 - 100%"
+
+        area_mcn_sum <- aggregate(mangrove_area~year+qarea,FUN="sum",data=mcn[which(mcn$year>2006),])
+        area_mcn_sum_temp <- aggregate(sst~year+qarea,FUN="mean",data=mcn[which(mcn$year %in% unique(area_mcn_sum$year)),])
+        area_mcn_sum$sst <- area_mcn_sum_temp$sst
+        
+
+        a07 <- area_mcn_sum[which(area_mcn_sum$year==2007),c(2,3)]
+        names(a07)[2] <- "a07"
+        area_mcn_sum <- merge(area_mcn_sum,a07,by="qarea",all=T)
+        area_mcn_sum$area_perc <- 100*area_mcn_sum$mangrove_area/area_mcn_sum$a07
+
+        area_mcn_sum$qarea <- factor(area_mcn_sum$qarea, levels = c("66 - 100%", "33 - 66%", "0 - 33%"))
+        levels(factor(area_mcn_sum$qarea))
+        
+        plot_sum_area <- ggplot(area_mcn_sum)+
+        geom_point(aes(x=year,y=100-area_perc,col=factor(qarea)))+
+        geom_smooth(aes(x=year,y=100-area_perc,col=factor(qarea)),se=F)+
+        scale_color_manual(values = c("0 - 33%"= "#028833",
+                                  "33 - 66%"= "#cfe68b",
+                                   "66 - 100%"= "#f27301")) + theme_bw()+
+        labs(color = "Percentile") + 
+        #ylab("Area loss since 2007 (%)")+
+        ylab("Loss since 2007 (%)")+
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Area Loss")
+
+        plot_sum_area
+
+
+        unique(data$bi_y)
+        gridcell_frag_med <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[1])]
+        gridcell_frag_high <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[2])]
+        gridcell_frag_low <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[3])]
+
+        
+        
+        glimpse(mcn)        #here 
+        mcn$q_np <- "33 - 66%"
+        mcn$q_np[which(mcn$gridcell_id %in% gridcell_frag_low)] <- "0 - 33%"
+        mcn$q_np[which(mcn$gridcell_id %in% gridcell_frag_high)] <- "66 - 100%"
+
+        np_mcn_sum <- aggregate(np~year+q_np,FUN="sum",data=mcn[which(mcn$year>2006),])
+        np_mcn_sum_temp <- aggregate(sst~year+q_np,FUN="mean",data=mcn[which(mcn$year %in% unique(np_mcn_sum$year)),])
+        np_mcn_sum$sst <- np_mcn_sum_temp$sst
+        
+        ggplot(np_mcn_sum)+
+        geom_point(aes(x=sst,y=np),alpha=0.2)
+        
+
+        a07 <- np_mcn_sum[which(np_mcn_sum$year==2007),c(2,3)]
+        names(a07)[2] <- "a07"
+        np_mcn_sum <- merge(np_mcn_sum,a07,by="q_np",all=T)
+        np_mcn_sum$np_perc <- 100*np_mcn_sum$np/np_mcn_sum$a07
+
+        np_mcn_sum$q_np <- factor(np_mcn_sum$q_np, levels = c("66 - 100%", "33 - 66%", "0 - 33%"))
+        levels((np_mcn_sum$q_np))
+        
+        plot_sum_np <- ggplot(np_mcn_sum)+
+        geom_point(aes(x=year,y=np_perc-100,col=factor(q_np)))+
+        #geom_line(aes(x=year,y=np_perc,col=factor(q_np)))+
+        geom_smooth(aes(x=year,y=np_perc-100,col=factor(q_np)),se=F)+
+        # scale_color_manual(values = c("low" = "#028833",
+        #                         "med" = "#cfe68b",
+        #                         "high" = "#f27301")) + theme_bw()+
+        scale_color_manual(values = c("0 - 33%" = "#028833",
+                                 "33 - 66%" = "#9ac8d5",
+                                 "66 - 100%" = "#5a4da5")) + theme_bw()+
+        labs(color = "Percentile") + 
+        ylab("Change since 2007 (%)")+
+        theme(plot.title = element_text(hjust = 0.5)) +
+        ggtitle("Fragmentation")
+        plot_sum_np
+                
+        # map <- ggplot() +
+        #     geom_sf(data = data, mapping = aes(fill = bi_class, geometry=geom), 
+        #     color = "white", size = 0.001, show.legend = FALSE) +
+        #     bi_scale_fill(pal = "GrPink",
+        #                     rotate_pal=TRUE,
+        #                     #flip_axes=TRUE, 
+        #                     dim = 3) +
+        #     labs(
+        #         title = "Magrove Change"#,
+        #         #subtitle = "Gray Pink (GrPink) Palette"
+        #     ) +
+        #     bi_theme()
+        # map
+
+        
+
+        # finalPlot <- ggdraw() +
+        # draw_plot(map, 0, 0, 1, 1) +
+        # draw_plot(legend, 0.1, .3, 0.2, 0.2)
+
+        # finalPlot
+
+        # ## Get BaseMAP
+        #     library("ggmap")
+        #     bbox <- c(left = -180, bottom = -40, right = 180, top =31)
+        #     map <- get_stamenmap(bbox, maptype = "terrain-background", zoom = 4)
+        #     ggmap(map)
+
+        #     # Define a function to fix the bbox to be in EPSG:3857
+        #     # ggmap_bbox <- function(map) {
+        #     # if (!inherits(map, "ggmap")) stop("map must be a ggmap object")
+        #     # # Extract the bounding box (in lat/lon) from the ggmap to a numeric vector, 
+        #     # # and set the names to what sf::st_bbox expects:
+        #     # map_bbox <- setNames(unlist(attr(map, "bb")), 
+        #     #                     c("ymin", "xmin", "ymax", "xmax"))
+
+        #     # # Coonvert the bbox to an sf polygon, transform it to 3857, 
+        #     # # and convert back to a bbox (convoluted, but it works)
+        #     # bbox_3857 <- st_bbox(st_transform(st_as_sfc(st_bbox(map_bbox, crs = 4326)), 3857))
+
+        #     # # Overwrite the bbox of the ggmap object with the transformed coordinates 
+        #     # attr(map, "bb")$ll.lat <- bbox_3857["ymin"]
+        #     # attr(map, "bb")$ll.lon <- bbox_3857["xmin"]
+        #     # attr(map, "bb")$ur.lat <- bbox_3857["ymax"]
+        #     # attr(map, "bb")$ur.lon <- bbox_3857["xmax"]
+        #     # map
+        #     # }
+
+        #     # # Use the function:
+        #     # map <- ggmap_bbox(map)
+            
+        # ## Get BaseMAP
+            
+        ## Plot Mangrove Map    (start)
+            # Transform the data to Robinson projection
+            data$geom <- st_transform(data$geom, "+proj=robin")
+
+            
+            world <- ne_countries(scale = "medium", returnclass = "sf")
+            class(world)
+
+            world$geometry <- st_transform(world$geometry, "+proj=robin")
+
+            custom_pal3 <- c(
+            "1-1" = "#028833", # low x, low y
+            "2-1" = "#cfe68b",
+            "3-1" = "#f27301", # high x, low y
+            "1-2" = "#9ac8d5",
+            "2-2" = "#e7e5e6", # medium x, medium y
+            "3-2" = "#fe9aa6",
+            "1-3" = "#5a4da5", # low x, high y
+            "2-3" = "#cd9bc9",
+            "3-3" = "#f10480" # high x, high y
+            )
+            
+            
+            
+            mangrove_map_basemap <- ggplot()+
+            #geom_sf(data = sea, fill = "lightblue") +
+            geom_sf(data =world, color = "black", fill = "black")+
+            geom_sf(data = data, mapping = aes(fill = bi_class, geometry=geom), 
+            color = NA, size = 1, show.legend = FALSE,, inherit.aes = FALSE) + 
+            #+ coord_map("robinson")+
+            coord_sf(xlim = c(-180*10^5, 180*10^5), ylim = c(-40*10^5, 31*10^5))+
+            bi_scale_fill(
+                #pal = "DkBlue2",
+                pal = custom_pal3,
+                            #rotate_pal=TRUE,
+                            #flip_axes=TRUE, 
+                            dim = 3) +
+            theme_minimal()#+
+            #theme(plot.background = element_rect(fill = "lightblue"))
+            #labs(
+             #   title = "Magrove Change"#,
+                #subtitle = "Gray Pink (GrPink) Palette"
+            #) +
+            #bi_theme() #+ 
+            #theme_void()
+
+            mangrove_map_basemap
+
+        
+
+            legend <- bi_legend(pal = custom_pal3,
+                    dim = 3,
+                    xlab = "Area Loss ",
+                    ylab = "Fragmentation ",
+                    #rotate_pal=TRUE,
+                    #flip_axes=TRUE,
+                    size = 2) +
+                    theme_void() +
+                    theme(
+                    #legend.title = element_blank(),
+                    legend.text = element_text(size = 2), 
+                    axis.title.x = element_text(size=9),
+                    #axis.text.x = element_blank(),
+                    axis.title.y = element_text(angle = 90,size=9),
+                    axis.text.y = element_blank())
+                legend
+
+                finalPlot <- ggdraw() +
+                    draw_plot(mangrove_map_basemap, 0, 0, 1, 1) +
+                    draw_plot(legend, x=0.14, y=.13, width = 0.2, height = 0.4)
+                finalPlot
+
+            ggsave("Figures/Draft/Map_Change.png",dpi=2000)
+
+
+            finalPlot <- ggdraw() +
+                    draw_plot(mangrove_map_basemap, 0, 0, 1, 1) +
+                    draw_plot(legend, x=0.14, y=.25, width = 0.2, height = 0.3)
+            blank_plot <- ggplot() + theme_void()
+            
+            ggarrange(finalPlot,ggarrange(blank_plot,plot_sum_np,plot_sum_area,ncol=3,widths=c(1,3,3)),nrow=2,heights=c(3,2))
+            ggsave("Figures/Draft/Fig_1_Map.png",dpi=600)
+
+
+            mangrove_map_basemap <- ggplot()+
+            #geom_sf(data = sea, fill = "lightblue") +
+            geom_sf(data =world, color = "black", fill = "black")+
+            geom_sf(data = data, mapping = aes(fill = bi_class, geometry=geom), 
+            color = "white", size = 0, show.legend = FALSE, inherit.aes = FALSE) + 
+            #+ coord_map("robinson")+
+            coord_sf(xlim = c(-180*10^5, 180*10^5), ylim = c(-40*10^5, 31*10^5))+
+            bi_scale_fill(
+                #pal = "DkBlue2",
+                pal = custom_pal3,
+                            #rotate_pal=TRUE,
+                            #flip_axes=TRUE, 
+                            dim = 3) +
+            theme_minimal()#+
+            mangrove_map_basemap
+
+
+            finalPlot <- ggdraw() +
+                    draw_plot(mangrove_map_basemap, 0, 0, 1, 1) +
+                    draw_plot(legend, x=0.14, y=.25, width = 0.2, height = 0.3)
+            blank_plot <- ggplot() + theme_void()
+            
+            ggarrange(finalPlot,ggarrange(blank_plot,plot_sum_np,plot_sum_area,ncol=3,widths=c(1,3,3)),nrow=2,heights=c(3,2))
+            ggsave("Figures/Draft/Fig_1_Map_whiteborder.png",dpi=600)
+
+        
+        ## Plot Mangrove Map    (end)
+            ## Figure with distribuion of classes
+                groups <- bi_class_breaks(mcn_grouped_area[which(mcn_grouped_area$year>2010 & 
+                            is.finite(mcn_grouped_area$long_change_neg) & 
+                            is.finite(mcn_grouped_area$long_changenp)),], 
+                x = long_change_neg, 
+                y = long_changenp, 
+                #style = "quantile", dim = 3,split=T)
+                style = "quantile", dim = 3,split=T)
+
+
+                bi_class_breaks(mcn_grouped_area[which(mcn_grouped_area$year>2010 & 
+                            is.finite(mcn_grouped_area$long_change_neg) & 
+                            is.finite(mcn_grouped_area$long_changenp)),], 
+                x = long_change_neg, 
+                y = long_changenp, 
+                #style = "quantile", dim = 3)
+                style 
+                = "quantile", dim = 3)
+
+                groups 
+
+                legend_with_dots <- ggplot(data,aes( x = long_change_neg, 
+                y = long_changenp))+
+                annotate("rect", xmin=-groups$bi_x[2], xmax=groups$bi_x[3], ymin=-groups$bi_y[2], ymax=-groups$bi_y[3], fill=custom_pal3[1])+
+                annotate("rect", xmin=groups$bi_x[3], xmax=groups$bi_x[4], ymin=-groups$bi_y[2], ymax=-groups$bi_y[3], fill=custom_pal3[2])+
+                annotate("rect", xmin=groups$bi_x[4], xmax=groups$bi_x[5], ymin=-groups$bi_y[2], ymax=-groups$bi_y[3], fill=custom_pal3[3])+
+                annotate("rect", xmin=-groups$bi_x[2], xmax=groups$bi_x[3], ymin=-groups$bi_y[3], ymax=groups$bi_y[4], fill=custom_pal3[4])+
+                annotate("rect", xmin=groups$bi_x[3], xmax=groups$bi_x[4], ymin=-groups$bi_y[3], ymax=groups$bi_y[4], fill=custom_pal3[5])+
+                annotate("rect", xmin=groups$bi_x[4], xmax=groups$bi_x[5], ymin=-groups$bi_y[3], ymax=groups$bi_y[4], fill=custom_pal3[6])+
+                annotate("rect", xmin=-groups$bi_x[2], xmax=groups$bi_x[3], ymin=groups$bi_y[4], ymax=groups$bi_y[5], fill=custom_pal3[7])+
+                annotate("rect", xmin=groups$bi_x[3], xmax=groups$bi_x[4], ymin=groups$bi_y[4], ymax=groups$bi_y[5], fill=custom_pal3[8])+
+                annotate("rect", xmin=groups$bi_x[4], xmax=groups$bi_x[5], ymin=groups$bi_y[4], ymax=groups$bi_y[5], fill=custom_pal3[9])+
+                #geom_hline(aes(yintercept=0),linetype="dashed")+
+                #geom_vline(aes(xintercept=0),linetype="dashed")+
+                geom_point(alpha=0.2)+
+                theme_minimal()+
+                coord_cartesian(
+                xlim = c(-1,1),
+                ylim = c(-1,1))+
+                theme_void() +
+                ylab(expression("Fragmentation" %->% ""))+
+                xlab(expression("Area Loss" %->% ""))+
+                theme(
+                #legend.title = element_blank(),
+                legend.text = element_text(size = 2), 
+                axis.title.x = element_text(size=9),
+                axis.text.x = element_blank(),
+                axis.title.y = element_text(angle = 90,size=9),
+                axis.text.y = element_blank())
+
+                legend_with_dots
+                
+
+
+                #ggsave("Figures/Draft/Supp/Legend_with_Dots.png",dpi=1000)
+            ##Figure with distribution of classes (end)
+            
+    ## Plot dimension changes in map (end)
+
+    mcn$holes_density <- mcn$holes / mcn$mangrove_area
+    
     mcn_grouped <- mcn %>%
     arrange(gridcell_id,year)  %>% group_by(gridcell_id)%>%
-    filter(year %in% c(1996,2020)) %>%
-    mutate(long_change =mangrove_area / dplyr::lag(mangrove_area)-1)
-    
-    glimpse(mcn_grouped)
+    #filter(year %in% c(1996,2020)) %>%
+    #mutate(long_change =holes_density / dplyr::lag(holes_density)-1)
+    mutate(long_change =holes / dplyr::lag(holes)-1)
+    #mutate(annual_holes_dens_change =holes_density / dplyr::lag(holes_density)-1) 
+
+    #mean_holes_dens_change <- aggregate(annual_holes_dens_change~gridcell_id,FUN="mean",nr.rm=T,data=mcn_grouped)
+    #qholes <- quantile(mean_holes_dens_change$annual_holes_dens_change, probs=c(0.25,0.75))
+    #id_low_holes <- mean_holes_dens_change$gridcell_id[which(mean_holes_dens_change$annual_holes_dens_change < q_holes[1])]
+    #id_high_holes <- mean_holes_dens_change$gridcell_id[which(mean_holes_dens_change$annual_holes_dens_change > q_holes[2])]
     
 
-    area_mcn_sum <- aggregate(mangrove_area~year+R5,FUN="sum",data=mcn)
-    glimpse(area_mcn_sum)
+
+    # q_holes <- quantile(mcn_grouped$long_change[which(is.finite(mcn$holes_density))],probs = c(0.25,0.75), na.rm = TRUE)
+    # id_low_holes <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change < q_holes[1] & is.finite(mcn$holes_density))]
+    # id_high_holes <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change > q_holes[2]& is.finite(mcn$holes_density))]
+
+    q_holes <- quantile(mcn_grouped$long_change,probs = c(0.25,0.75), na.rm = TRUE)
+    id_low_holes <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change < q_holes[1])]
+    id_high_holes <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change > q_holes[2])]
+
+    mcn$qarea <- "med"
+    mcn$qarea[which(mcn$gridcell_id %in% id_low_area)] <- "low"
+    mcn$qarea[which(mcn$gridcell_id %in% id_high_area)] <- "high"
 
     
-    plot_sum_area <- ggplot(area_mcn_sum)+
-    geom_point(aes(x=year,y=mangrove_area),alpha=0.2)+
-    geom_smooth(aes(x=year,y=mangrove_area,col=R5))+
-    #coord_cartesian(xlim=c(2004,2020))+
-    #coord_cartesian(ylim=c(-1,1),xlim=c(2016,2020))+
-    #coord_cartesian(xlim=c(1995,2020),ylim=c(2,2.5))+
-    theme_bw()+
-    ylab("Log Mangrove area")
 
-    gaps_mcn_sum <- aggregate(holes~year+R5,FUN="sum",data=mcn)
+    mcn$qholes <- "med"
+    mcn$qholes[which(mcn$gridcell_id %in% id_low_holes)] <- "low"
+    mcn$qholes[which(mcn$gridcell_id %in% id_high_holes)] <- "high"
+    gaps_mcn_sum <- aggregate(holes~year+qholes,FUN="mean",data=mcn,na.rm=T)
+
     glimpse(gaps_mcn_sum)
-    gaps_mcn_sum$mangrove_area <- area_mcn_sum$mangrove_area
-    
-    plot_sum_gaps <- ggplot(gaps_mcn_sum)+
-    geom_point(aes(x=year,y=holes/mangrove_area),alpha=0.8)+
-    geom_smooth(aes(x=year,y=holes/mangrove_area,color=R5))+
+
+    gaps_mcn_sum96 <- gaps_mcn_sum[which(gaps_mcn_sum$year==1996),]
+    names(gaps_mcn_sum96)[3] <- "density96"
+    gaps_mcn_sum <- merge(gaps_mcn_sum,gaps_mcn_sum96,by=c("qholes"),all=T)
+    gaps_mcn_sum$holes_perc <- 100*gaps_mcn_sum$holes / gaps_mcn_sum$density96
+    gaps_mcn_sum$year <- gaps_mcn_sum$year.x
+
+    plot_sum_gaps <- ggplot(gaps_mcn_sum[which(gaps_mcn_sum$qholes != "med"),])+
+    geom_point(aes(x=year,y=holes_perc),alpha=0.8)+
+    geom_line(aes(x=year,y=holes_perc,color=qholes),alpha=0.8)+
+    #geom_smooth(aes(x=year,y=holes_perc,color=qholes),method="lm")+
     #coord_cartesian(xlim=c(2007,2020),ylim=)+
     theme_bw()
+    plot_sum_gaps
+
+    plot_sum_gaps <- ggplot(gaps_mcn_sum[which(gaps_mcn_sum$qholes != "med"),])+
+    geom_point(aes(x=year,y=holes_density),alpha=0.8)+
+    geom_smooth(aes(x=year,y=holes_density,color=qholes))+
+    #coord_cartesian(xlim=c(2007,2020),ylim=)+
+    theme_bw()
+    plot_sum_gaps
 
     ggarrange(plot_sum_gaps,plot_sum_area,ncol=1)
 

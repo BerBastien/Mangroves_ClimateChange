@@ -179,17 +179,17 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         
     #Models SST Hottest (start)
         model_area_ssthot <- felm(log(mangrove_area)~
-            #sst + I(sst^2) + 
+            sst + I(sst^2) + 
             #rich*sst + rich*I(sst^2) + 
             #rich:sst_hottest + rich:I(sst_hottest^2) + 
             #sst:sst_hottest + sst:I(sst_hottest^2) + 
-            sst_hottest + I(sst_hottest^2) + 
+            #sst_hottest + I(sst_hottest^2) + 
             #sst:hot_location_alldata + I(sst^2):hot_location_alldata + 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+I(log(GDP/Population))
-            |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+            factor(rich)*logGDPpc+I(log(GDP/Population))+ year*factor(gridcell_id) + factor(gridcell_id):I(year^2)
+            |0|0|gridcell_id,
         data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),])
         summary(model_area_ssthot)
         
