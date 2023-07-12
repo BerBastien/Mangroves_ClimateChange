@@ -13,350 +13,21 @@ library('scico')
 library("ggpubr")
 glimpse(mcn)
 
-## Plot Bins
-ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
-
-## Plot Bins
-
-## Plots SST
-
-    
-    ggplot(mcn) +
-        geom_point(aes(y = mhw_dur, x = year, color = "Hotwave"), alpha = 0.1) +
-        geom_point(aes(y = mcw_dur, x = year, color = "Coldwave"), alpha = 0.1) +
-        #geom_smooth(aes(y = mcw_dur, x = year), method="lm", color = "cyan4",se=TRUE,level=0.99) +
-        #geom_smooth(aes(y = mhw_dur, x = year), method="lm",color = "brown2",se=TRUE,level=0.99) +
-        geom_smooth(aes(y = mcw_dur, x = year), color = "cyan4",se=TRUE,level=0.99) +
-        geom_smooth(aes(y = mhw_dur, x = year),color = "brown2",se=TRUE,level=0.99) +
-        scale_color_manual(values = c("Hotwave" = "brown2", "Coldwave" = "cyan4"))+
-        scale_y_continuous(trans = "log") +
-        labs(y = "Duration (days)", x = "Year", title = "Marine hot and cold waves duration by year", color = "Type") +
-        theme_bw()
-        #ggsave("Figures/MHW_MCW_duration_nonlinear.png")
-
-    
-    
-    ggplot(mcn) +
-        geom_density_ridges(aes(x = mhw_dur, y = as.factor(year), fill = "Hotwave"), alpha = 0.5) +
-        geom_density_ridges(aes(x = mcw_dur, y = as.factor(year), fill = "Coldwave"), alpha = 0.5) +
-        scale_x_continuous(trans = "log") +
-        scale_fill_manual(values = c("Hotwave" = "brown2", "Coldwave" = "cyan4")) +
-        labs(x = "Duration (days)", y = "Year", title = "Marine hot and cold waves duration by year",, fill = "Type") +
-        theme_bw()
-        #ggsave("Figures/MHW_MCW_duration_ridges.png")
-
-    m1 <- felm(mhw_int_anom~year+sst|gridcell_id|0|0,data=mcn)
-    summary(m1)
-    m2 <- felm(mcw_int_anom~year+sst|gridcell_id|0|0,data=mcn)
-    summary(m2)
-    m2$coefficients
-
-    ggplot(mcn) +
-        geom_line(aes(x=year,color = sst, y = mhw_int_anom,group = gridcell_id))
-    
-    hotwaves_plot <- ggplot(mcn) +
-        geom_line(aes(x = year, color = sst, y = mhw_int_anom, group = gridcell_id)) +
-        scale_color_viridis_c(option = "plasma") +
-        #geom_smooth(aes( x = year, y = mhw_int_anom),method="lm",color="black")+
-        #geom_text(aes( x = 2010, y = 1.5, label="Slope = 0.0016***"))+
-        coord_cartesian() +
-        ggtitle("Marine hotwaves intensity")+
-        theme_bw()+ylab("Temperature anomaly (C)")
-
-    coldwaves_plot <- ggplot(mcn) +
-        geom_line(aes(color = sst, y = mcw_int_anom, group = gridcell_id, x = year))+
-        scale_color_viridis_c() +  
-        #geom_smooth(aes( x = year, y = mcw_int_anom),method="lm",color="black")+
-        #geom_text(aes( x = 2010, y = -1.5, label="Slope = 0.0007***"))+
-        coord_cartesian() +
-        ggtitle("Marine coldwaves intensity")+
-        theme_bw()+ylab("Temperature anomaly (C)")
-
-    library('ggpubr')
-    ggarrange(hotwaves_plot,coldwaves_plot,ncol=1)
-
-    #ggsave("Figures/MHW_MCW_anomalies.png")
-    stargazer(m1,m2,type="text")
-
-    glimpse(mcn)
-    count_mhw <- aggregate(mhw~year,data=mcn,FUN="sum")
-    names(count_mhw)[2] <- "count"
-    count_mhw$type="MHW"
-    
-    count_mcw <- aggregate(mcw~year,data=mcn,FUN="sum")
-    names(count_mcw)[2] <- "count"
-    count_mcw$type="MCW"
-    count_mw <- rbind(count_mhw,count_mcw)
-    #levels(factor(count_mw$type))
-    #count_mw$type <- factor(count_mw$type)
-    #levels(count_mw$type) <- relevel(count_mw$type,levels=c("MCW","MHW"),ref="MHW")
-    #count_mw$type <- fct_rev(count_mw$type)
-    
-    ggplot(data=count_mw)+
-    geom_bar(aes(x=year,y=count,fill=fct_rev(type)),stat="identity")+
-    theme_bw()+ 
-    guides(fill=guide_legend(title="Type"))+
-    scale_fill_manual(values=c("#c7457c","#2b9089"))
-    #ggsave("Figures/MHW_MCW_count.png")
-
-
-    ggplot(data=count_mw)+
-    geom_line(aes(x=year,y=100*count/1533,color=fct_rev(type)),stat="identity", position="dodge")+
-    theme_bw()+ 
-    ylab("Percent of sites")+
-    guides(color=guide_legend(title="Type"))+
-    scale_color_manual(values=c("#c7457c","#2b9089"))
-    #ggsave("Figures/MHW_MCW_percent.png")
-
-    
-    aggregate(count~type,data=count_mw,FUN="sum")
-
-    glimpse(mcn)
-    
-    ggplot(mcn)+
-    geom_point(aes(x=(mean_temp+temp_anom),y=(sst),color=factor(mhw)))+
-    theme_minimal()+
-    geom_text(data=mcn[which(mcn$year==2015),],aes(x=(mean_temp+temp_anom),y=sst+0.3,label=countrycode))+
-    xlab("Annual mean surface temperature")+ylab("SST")+
-    guides(color=guide_legend(title="Year with MHW"))
-    #ggsave("Figures/SST_Temp_MHW.png",dpi=600)
-
-    ggplot(mcn)+
-    geom_point(aes(x=(temp_anom),y=sst,color=factor(mhw)))+
-    theme_minimal()
-
-    ggplot(mcn)+
-    geom_point(aes(x=(temp_anom),y=(mhw_int_anom),color=sst,group=gridcell_id))+
-    scale_color_viridis_c(option = "plasma") +
-    theme_minimal()+xlab("Annual mean surface temperature anomaly")+ylab("Anomaly during MHW")+
-    guides(color=guide_legend("Annual mean SST"))
-    #ggsave("Figures/Anomalies.png",dpi=600)
-
-    model_sst <- felm(mhw_int_anom~temp_anom|gridcell_id|0|0,data=mcn)
-    summary(model_sst)
-    
-    model_sst <- felm(mhw_int_anom~temp_anom+Mean_Precipitation|gridcell_id|0|0,data=mcn)
-    summary(model_sst)
-    stargazer(model_sst,type="text")
-
-    ggplot(mcn)+
-    geom_point(aes(x=(spei),y=(mhw_int_anom),color=sst,group=gridcell_id))+
-    scale_color_viridis_c(option = "plasma") +
-    theme_minimal()+xlab("Annual SPEI")+ylab("Anomaly during MHW")+
-    guides(color=guide_legend("Annual mean SST"))
-
-    model_sst <- felm(mhw_int_anom~temp_anom+Mean_Precipitation+spei|year+gridcell_id|0|0,data=mcn)
-    summary(model_sst)
-    stargazer(model_sst,type="text")
-
-    ggplot(mcn)+
-    geom_point(aes(x=(Mean_Precipitation),y=(sst),color=sst,group=gridcell_id))+
-    scale_color_viridis_c(option = "plasma") +
-    theme_minimal()+xlab("Annual mean Precipitation")+ylab("Anomaly during MHW")+
-    guides(color=guide_legend("Annual mean SST"))
-    
-    model_sst <- felm(mhw_int_anom~I(temp_anom)+Mean_Precipitation|gridcell_id|0|0,data=mcn)
-    summary(model_sst)
-    stargazer(model_sst,type="text")
-    
-
-    
-    
-
-    ggplot(mcn)+
-    geom_point(aes(x=(mean_temp+temp_anom),y=mhw_int,color=factor(mhw)))+
-    theme_minimal()
-
-## Plots SST (end)
-## Plots NTL (start)
-
-    glimpse(mcn)
-    
-    
-    glimpse(mcn)
-    
-    
-
-    
-
-    filtered_mcn <- mcn %>%
-    group_by(gridcell_id) %>%
-    filter(sum(which(abs(ntl_change)>1))<1) #filtering out any gridcell with ntl changes larger than 10
-
-    filtered_mcn$ntl[which(filtered_mcn$gridcell_id==1200)]
-    filtered_mcn$ntl_change[which(filtered_mcn$gridcell_id==1200)]
-    sum(filtered_mcn$ntl[which(filtered_mcn$gridcell_id==1200)]==0)
-    sum(is.na(filtered_mcn$ntl[which(filtered_mcn$gridcell_id==1200)]))
-
-    filtered_mcn <- filtered_mcn %>%
-    group_by(gridcell_id) %>%
-    filter(sum(is.na(ntl))<19) #filtering out any gridcell with ntl changes larger than 10
-
-    filtered_mcn <- filtered_mcn %>%
-    group_by(gridcell_id) %>%
-    filter(sum((ntl==0),na.rm=TRUE)<1) 
-
-    #filtered_mcn <- ungroup(filtered_mcn)
-
-    #sum(which(abs(filtered_mcn$ntl_change[which(filtered_mcn$gridcell_id==2)])>10))
-    
-    
-    ggplot(filtered_mcn)+
-    geom_line(aes(x=year,y=log(ntl),group=gridcell_id,color=sensor),alpha=0.2)+
-    #coord_cartesian(xlim=c(2013,2021))+
-    theme_bw()+
-    ylab("Log of NTL (nWatts/cm^2)")
-    ggsave("Figures/NTL_filtered_sensors.png")
-
-    ggplot(filtered_mcn)+
-    geom_line(aes(x=year,y=ntl_change,group=gridcell_id,color=R5),alpha=0.2)+
-    #coord_cartesian(xlim=c(2014,2021))+
-    theme_bw()+
-    ylab("NTL annual change")
-    #ggsave("Figures/NTL_change_filtered_sensors.png")
-
-    
-    ntl_R5 <- aggregate(ntl_change~R5+year,data=filtered_mcn,FUN="median")
-
-    ntl_R52 <- aggregate(ntl~R5+year,data=filtered_mcn,FUN="mean")
-    ntl_R5$ntl <- ntl_R52$ntl
-
-    filtered_mcn$countrycode[which(filtered_mcn$ntl %in% aggregate(ntl~R5,data=filtered_mcn[which(filtered_mcn$year==2020),],FUN="max")[,2])]
-    aggregate(ntl~R5,data=filtered_mcn,FUN="max")
-    
-    ggplot(ntl_R52)+
-    geom_histogram(aes(x=year,y=log(ntl),fill=R5),stat="identity",bins=7,position="dodge")+
-    theme_bw()+
-    xlab("Year")+
-    ylab("NTL")+ggtitle("Average NTL by region")
-    #ggsave("Figures/NTL_by_reigon.png")
-
-    ggplot(ntl_R5[which(ntl_R5$year %in% c(1996,2020)),])+
-    geom_histogram(aes(x=factor(year),y=ntl_change,fill=R5),stat="identity",bins=7,position="dodge")+
-    theme_bw()+
-    xlab("Year")+
-    ylab("NTL growth")+ggtitle("Average NTL growth by region")
-    
-    #ggsave("Figures/NTLchange_by_reigon.png")
-
-    ggplot(mcn[which(mcn$year==2020),])+
-    geom_histogram(aes(x=ntl_change,fill=R5),bins=7,position="dodge")+
-    xlim(c(-1,1))+
-    theme_bw()+
-    xlab("NTL annual change in 2020")+
-    ylab("Count")
-    #ggsave("Figures/NTL_change_2020.png")
-
-    ggplot(mcn[which(mcn$year %in% c(2015,2020)),])+
-    geom_histogram(aes(x=ntl_change,fill=factor(year)),bins=15,position="dodge")+
-    xlim(c(-1,1))+
-    theme_bw()+
-    xlab("NTL annual change")+
-    ylab("Count")
-    #ggsave("Figures/NTL_change_20152020.png")
-        
-
-    library(lfe)
-    glimpse(filtered_mcn)
-    
-    model1 <- felm(log(ntl)~year:R5|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$ntl>0),])
-    summary(model1)
-    stargazer(model1,type="text")
-
-    ggplot(filtered_mcn)+
-    #ggplot(mcn_g)+
-    geom_line(aes(x=year,y=(ntl_change),group=gridcell_id,color=income_grp),alpha=0.2)+
-    #geom_smooth(aes(x=year,y=(ntl_change)),method="lm")+
-    #scale_color_viridis_c(option = "plasma") +  
-    #geom_line(aes(x=year,y=(ntl_change),group=gridcell_id,color=income_grp),alpha=0.2)+
-    #ylim(c(1,16))+
-    coord_cartesian(xlim=c(2014,2021))+
-    guides(color="none")+
-    theme_bw()+
-    ylab("NTL annual change (%)")
-
-    ggplot(filtered_mcn)+
-    geom_line(aes(x=year,y=(ntl_change),group=gridcell_id,color=income_grp),alpha=0.02)+
-    geom_smooth(aes(x=year,y=(ntl_change)),method="lm")+
-    coord_cartesian(xlim=c(2014,2021),ylim=c(0,0.1))+
-    #scale_y_continuous(trans="log")+
-    guides(color="none")+
-    theme_bw()+
-    ylab("NTL annual change (%)")
-    
-    #ggsave("Figures/NTLchange_filtered_lm.png")
-    model2 <- felm(ntl_change~year:R5+I(GDP/Population)|gridcell_id+countrycode|0|gridcell_id,data=filtered_mcn[which(filtered_mcn$ntl>0),])
-    summary(model2)
-    stargazer(model2,type="text")
-
-
-## Plots NTL (start)
-
 ## Plots Mangroves (start)
 
     glimpse(filtered_mcn)
 
-    #filtered_mcn <- mcn %>%
-    #group_by(gridcell_id) %>%
-    #filter(sum(which(abs(annual_area_change)>1))<1) #filtering out any gridcell with ntl changes larger than 10
-
-
-    change_area <- ggplot(mcn)+
-    geom_line(aes(x=year,y=annual_area_change,group=gridcell_id,color=R5),alpha=0.2)+
-    ylab("Area change")+
-    coord_cartesian(ylim=c(-1,1),xlim=c(2016,2020))+theme_bw()
-
-    change_area
-    
-    model3 <- felm(annual_area_change~year|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
-    summary(model3)
-
-    mcn$mangrove_area[which(mcn$year==1996)]
-    mcn$year <- as.double(mcn$year)
     
     ## Plot Area timeseries (start)
     
-        glimpse(mcn)
+        
         mcn_grouped <- mcn %>%
         arrange(gridcell_id,year)  %>% group_by(gridcell_id)%>%
         filter(year %in% c(2007,2020)) %>%
         mutate(long_change =mangrove_area / dplyr::lag(mangrove_area)-1)
         mcn_grouped_area <- mcn_grouped
-        q_area <- quantile(mcn_grouped$long_change,probs = c(0.25,0.75), na.rm = TRUE)
-        id_low_area <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change < q_area[1])]
-        id_high_area <- mcn_grouped$gridcell_id[which(mcn_grouped$long_change > q_area[2])]
-        mcn$qarea <- "med"
-        mcn$qarea[which(mcn$gridcell_id %in% id_low_area)] <- "low"
-        mcn$qarea[which(mcn$gridcell_id %in% id_high_area)] <- "high"
-
-        area_mcn_sum <- aggregate(mangrove_area~year+qarea,FUN="sum",data=mcn[which(mcn$year>2006),])
-        area_mcn_sum_temp <- aggregate(sst~year+qarea,FUN="mean",data=mcn[which(mcn$year %in% unique(area_mcn_sum$year)),])
-        area_mcn_sum$sst <- area_mcn_sum_temp$sst
-        glimpse(area_mcn_sum)
-
-        ggplot(area_mcn_sum)+
-        geom_point(aes(x=sst,y=mangrove_area),alpha=0.2)
         
-        plot_sum_area <- ggplot(area_mcn_sum)+
-        geom_point(aes(x=year,y=mangrove_area,col=factor(qarea)))+
-        #scale_color_scico(palette="hawaii")+
-        geom_smooth(aes(x=year,y=mangrove_area,col=factor(qarea)))+
-        theme_bw()+
-        ylab("Log Mangrove area")
-        plot_sum_area
-
-        a07 <- area_mcn_sum[which(area_mcn_sum$year==2007),c(2,3)]
-        names(a07)[2] <- "a07"
-        area_mcn_sum <- merge(area_mcn_sum,a07,by="qarea",all=T)
-        area_mcn_sum$area_perc <- 100*area_mcn_sum$mangrove_area/area_mcn_sum$a07
-
-        plot_sum_area <- ggplot(area_mcn_sum)+
-        geom_point(aes(x=year,y=area_perc,col=factor(qarea)))+
-        #scale_color_scico(palette="hawaii")+
-        geom_smooth(aes(x=year,y=area_perc,col=factor(qarea)))+
-        theme_bw()+
-        ylab("Log Mangrove area")
-        plot_sum_area
+        
 
     ## Plot Area timeseries (end)
 
@@ -366,52 +37,11 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
         mcn_grouped <- mcn %>%
         arrange(gridcell_id,year)  %>% group_by(gridcell_id)%>%
         filter(year %in% c(2007,2020)) %>%
-        mutate(long_changenp =np / dplyr::lag(np)-1)
+        mutate(long_changeholes =holes / dplyr::lag(holes)-1)
         glimpse(mcn_grouped)
-        mcn_grouped_np <- mcn_grouped
-        q_np <- quantile(mcn_grouped$long_changenp,probs = c(0.25,0.75), na.rm = TRUE)
-        id_low_np <- mcn_grouped$gridcell_id[which(mcn_grouped$long_changenp < q_np[1])]
-        id_high_np <- mcn_grouped$gridcell_id[which(mcn_grouped$long_changenp > q_np[2])]
-        mcn$q_np <- "med"
-        mcn$q_np[which(mcn$gridcell_id %in% id_low_np)] <- "low"
-        mcn$q_np[which(mcn$gridcell_id %in% id_high_np)] <- "high"
-
-        np_mcn_sum <- aggregate(np~year+q_np,FUN="sum",data=mcn[which(mcn$year>2006),])
-        np_mcn_sum_temp <- aggregate(sst~year+q_np,FUN="mean",data=mcn[which(mcn$year %in% unique(np_mcn_sum$year)),])
-        np_mcn_sum$sst <- np_mcn_sum_temp$sst
-        glimpse(np_mcn_sum)
-
-        ggplot(np_mcn_sum)+
-        geom_point(aes(x=sst,y=np),alpha=0.2)
+        mcn_grouped_holes <- mcn_grouped
+        mcn_grouped_area$long_changeholes <- mcn_grouped$long_changeholes
         
-        plot_sum_np <- ggplot(np_mcn_sum)+
-        geom_point(aes(x=year,y=np,col=factor(q_np)))+
-        #scale_color_scico(palette="hawaii")+
-        geom_smooth(aes(x=year,y=np,col=factor(q_np)))+
-        theme_bw()+
-        ylab("Log Mangrove area")
-        plot_sum_np
-
-        a07 <- np_mcn_sum[which(np_mcn_sum$year==2007),c(2,3)]
-        names(a07)[2] <- "a07"
-        np_mcn_sum <- merge(np_mcn_sum,a07,by="q_np",all=T)
-        np_mcn_sum$np_perc <- 100*np_mcn_sum$np/np_mcn_sum$a07
-
-        plot_sum_np <- ggplot(np_mcn_sum)+
-        geom_point(aes(x=year,y=np_perc,col=factor(q_np)))+
-        #scale_color_scico(palette="hawaii")+
-        geom_smooth(aes(x=year,y=np_perc,col=factor(q_np)))+
-        theme_bw()+
-        ylab("Log Mangrove area")
-        plot_sum_np
-
-
-
-        
-
-
-
-        mcn_grouped_area$long_changenp <- mcn_grouped_np$long_changenp
 
     ## Plot Area timeseries (end)
 
@@ -427,7 +57,7 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
         library("rnaturalearthdata")
         library(mapproj)
         
-        ## Calculating Area and NP percentiles (start)
+        ## Calculating Area and holes percentiles (start)
             gpkg_file <- "C:/Users/basti/Box/Data/Oceans/Mangroves/Nightlights/grid_nighlights_spatial.gpkg"
             gridcell_data <- st_read(gpkg_file)
             gridcell_sf <- st_as_sf(gridcell_data)
@@ -436,10 +66,10 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
             
             
             # data <- bi_class(mcn[which(mcn$year>2005 & 
-            #                 is.finite(mcn$annual_np_change) & 
+            #                 is.finite(mcn$annual_holes_change) & 
             #                 is.finite(mcn$annual_area_change)),], 
             #     x = annual_area_change, 
-            #     y = annual_np_change, 
+            #     y = annual_holes_change, 
             #     style = "quantile", dim = 3)
 
             
@@ -448,15 +78,15 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
 
             data <- bi_class(mcn_grouped_area[which(mcn_grouped_area$year>2010 & 
                             is.finite(mcn_grouped_area$long_change) & 
-                            is.finite(mcn_grouped_area$long_changenp)),], 
+                            is.finite(mcn_grouped_area$long_changeholes)),], 
                 x = long_change_neg, 
-                y = long_changenp, 
+                y = long_changeholes, 
                 style = "quantile", dim = 3,
                 keep_factors=TRUE)
             
             data <- merge(data,gridcell_sf,by="gridcell_id")
             glimpse(data)
-        ## Calculating Area and NP percentiles (start)
+        ## Calculating Area and holes percentiles (start)
 
         ## Plot time-series for percentiles (start)
             unique(data$bi_x)
@@ -499,37 +129,37 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
 
 
             unique(data$bi_y)
-            gridcell_frag_med <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[1])]
-            gridcell_frag_high <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[2])]
+            gridcell_frag_med <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[2])]
+            gridcell_frag_high <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[1])]
             gridcell_frag_low <- data$gridcell_id[which(data$bi_y==unique(data$bi_y)[3])]
 
             
             
             glimpse(mcn)        #here 
-            mcn$q_np <- "33 - 66%"
-            mcn$q_np[which(mcn$gridcell_id %in% gridcell_frag_low)] <- "0 - 33%"
-            mcn$q_np[which(mcn$gridcell_id %in% gridcell_frag_high)] <- "66 - 100%"
+            mcn$q_holes <- "33 - 66%"
+            mcn$q_holes[which(mcn$gridcell_id %in% gridcell_frag_low)] <- "0 - 33%"
+            mcn$q_holes[which(mcn$gridcell_id %in% gridcell_frag_high)] <- "66 - 100%"
 
-            np_mcn_sum <- aggregate(np~year+q_np,FUN="sum",data=mcn[which(mcn$year>2006),])
-            np_mcn_sum_temp <- aggregate(sst~year+q_np,FUN="mean",data=mcn[which(mcn$year %in% unique(np_mcn_sum$year)),])
-            np_mcn_sum$sst <- np_mcn_sum_temp$sst
+            holes_mcn_sum <- aggregate(holes~year+q_holes,FUN="sum",data=mcn[which(mcn$year>2006),])
+            holes_mcn_sum_temp <- aggregate(sst~year+q_holes,FUN="mean",data=mcn[which(mcn$year %in% unique(holes_mcn_sum$year)),])
+            holes_mcn_sum$sst <- holes_mcn_sum_temp$sst
             
-            ggplot(np_mcn_sum)+
-            geom_point(aes(x=sst,y=np),alpha=0.2)
+            ggplot(holes_mcn_sum)+
+            geom_point(aes(x=sst,y=holes),alpha=0.2)
             
 
-            a07 <- np_mcn_sum[which(np_mcn_sum$year==2007),c(2,3)]
+            a07 <- holes_mcn_sum[which(holes_mcn_sum$year==2007),c(2,3)]
             names(a07)[2] <- "a07"
-            np_mcn_sum <- merge(np_mcn_sum,a07,by="q_np",all=T)
-            np_mcn_sum$np_perc <- 100*np_mcn_sum$np/np_mcn_sum$a07
+            holes_mcn_sum <- merge(holes_mcn_sum,a07,by="q_holes",all=T)
+            holes_mcn_sum$holes_perc <- 100*holes_mcn_sum$holes/holes_mcn_sum$a07
 
-            np_mcn_sum$q_np <- factor(np_mcn_sum$q_np, levels = c("66 - 100%", "33 - 66%", "0 - 33%"))
-            levels((np_mcn_sum$q_np))
+            holes_mcn_sum$q_holes <- factor(holes_mcn_sum$q_holes, levels = c("66 - 100%", "33 - 66%", "0 - 33%"))
+            levels((holes_mcn_sum$q_holes))
             
-            plot_sum_np <- ggplot(np_mcn_sum)+
-            geom_point(aes(x=year,y=np_perc-100,col=factor(q_np)))+
-            #geom_line(aes(x=year,y=np_perc,col=factor(q_np)))+
-            geom_smooth(aes(x=year,y=np_perc-100,col=factor(q_np)),se=F)+
+            plot_sum_holes <- ggplot(holes_mcn_sum)+
+            geom_point(aes(x=year,y=holes_perc-100,col=factor(q_holes)))+
+            #geom_line(aes(x=year,y=holes_perc,col=factor(q_holes)))+
+            geom_smooth(aes(x=year,y=holes_perc-100,col=factor(q_holes)),se=F)+
             # scale_color_manual(values = c("low" = "#028833",
             #                         "med" = "#cfe68b",
             #                         "high" = "#f27301")) + theme_bw()+
@@ -539,8 +169,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
             labs(color = "Percentile") + 
             ylab("Change since 2007 (%)")+
             theme(plot.title = element_text(hjust = 0.5)) +
-            ggtitle("Fragmentation")
-            plot_sum_np
+            ggtitle("Gaps")
+            plot_sum_holes
         ## Plot time-series for percentiles (end)
             
         ## Plot Mangrove Map    (start)
@@ -596,7 +226,7 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
             legend <- bi_legend(pal = custom_pal3,
                     dim = 3,
                     xlab = "Area Loss ",
-                    ylab = "Fragmentation ",
+                    ylab = "Gaps ",
                     #rotate_pal=TRUE,
                     #flip_axes=TRUE,
                     size = 2) +
@@ -623,8 +253,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
                     draw_plot(legend, x=0.14, y=.25, width = 0.2, height = 0.3)
             blank_plot <- ggplot() + theme_void()
             
-            ggarrange(finalPlot,ggarrange(blank_plot,plot_sum_np,plot_sum_area,ncol=3,widths=c(1,3,3)),nrow=2,heights=c(3,2))
-            #ggsave("Figures/Draft/Fig_1_Map.png",dpi=600)
+            ggarrange(finalPlot,ggarrange(blank_plot,plot_sum_holes,plot_sum_area,ncol=3,widths=c(1,3,3)),nrow=2,heights=c(3,2))
+            #ggsave("Figures/Draft/Fig_1_Map_Area_v_Gaps.png",dpi=600)
 
 
             mangrove_map_basemap <- ggplot()+
@@ -650,7 +280,7 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
                     draw_plot(legend, x=0.14, y=.25, width = 0.2, height = 0.3)
             blank_plot <- ggplot() + theme_void()
             
-            ggarrange(finalPlot,ggarrange(blank_plot,plot_sum_np,plot_sum_area,ncol=3,widths=c(1.5,3,3)),nrow=2,heights=c(3,2.5))
+            ggarrange(finalPlot,ggarrange(blank_plot,plot_sum_holes,plot_sum_area,ncol=3,widths=c(1.5,3,3)),nrow=2,heights=c(3,2.5))
             #ggsave("Figures/Draft/Fig_1_Map_whiteborder.png",dpi=600)
 
         
@@ -659,18 +289,18 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
         ## Figure with distribuion of classes
             groups <- bi_class_breaks(mcn_grouped_area[which(mcn_grouped_area$year>2010 & 
                         is.finite(mcn_grouped_area$long_change_neg) & 
-                        is.finite(mcn_grouped_area$long_changenp)),], 
+                        is.finite(mcn_grouped_area$long_changeholes)),], 
             x = long_change_neg, 
-            y = long_changenp, 
+            y = long_changeholes, 
             #style = "quantile", dim = 3,split=T)
             style = "quantile", dim = 3,split=T)
 
 
             bi_class_breaks(mcn_grouped_area[which(mcn_grouped_area$year>2010 & 
                         is.finite(mcn_grouped_area$long_change_neg) & 
-                        is.finite(mcn_grouped_area$long_changenp)),], 
+                        is.finite(mcn_grouped_area$long_changeholes)),], 
             x = long_change_neg, 
-            y = long_changenp, 
+            y = long_changeholes, 
             #style = "quantile", dim = 3)
             style 
             = "quantile", dim = 3)
@@ -678,7 +308,7 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
             groups 
 
             legend_with_dots <- ggplot(data,aes( x = long_change_neg, 
-            y = long_changenp))+
+            y = long_changeholes))+
             annotate("rect", xmin=-groups$bi_x[2], xmax=groups$bi_x[3], ymin=-groups$bi_y[2], ymax=-groups$bi_y[3], fill=custom_pal3[1])+
             annotate("rect", xmin=groups$bi_x[3], xmax=groups$bi_x[4], ymin=-groups$bi_y[2], ymax=-groups$bi_y[3], fill=custom_pal3[2])+
             annotate("rect", xmin=groups$bi_x[4], xmax=groups$bi_x[5], ymin=-groups$bi_y[2], ymax=-groups$bi_y[3], fill=custom_pal3[3])+
@@ -716,22 +346,23 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
     ## Plot dimension changes in map (end)
 
     ## Plot individual study unit high fragmentation low area loss (start)
-        low_arealoss_high_fragmentation <- unique(mcn$gridcell_id[which(mcn$qarea =="33 - 66%" & mcn$q_np =="66 - 100%" )])
-        low_arealoss_high_fragmentation <- unique(mcn$gridcell_id[which(mcn$qarea =="66 - 100%" & mcn$q_np =="66 - 100%" )])
+        low_arealoss_high_fragmentation <- unique(mcn$gridcell_id[which(mcn$qarea =="33 - 66%" & mcn$q_holes =="66 - 100%" )])
+        low_arealoss_high_fragmentation <- unique(mcn$gridcell_id[which(mcn$qarea =="66 - 100%" & mcn$q_holes =="66 - 100%" )])
         glimpse(mcn_grouped_area)
         m2 <- mcn_grouped_area[which(mcn_grouped_area$gridcell_id %in% low_arealoss_high_fragmentation),]
         glimpse(m2)
-        m2$Longitude[which(m2$long_changenp==max(m2$long_changenp,na.rm=TRUE) )]        
-        m2$Latitude[which(m2$long_changenp==max(m2$long_changenp,na.rm=TRUE) )]
+        m2$Longitude[which(m2$long_changeholes==max(m2$long_changeholes,na.rm=TRUE) )]        
+        m2$Latitude[which(m2$long_changeholes==max(m2$long_changeholes,na.rm=TRUE) )]
 
-        m3 <- cbind(m2$Longitude,m2$Latitude,m2$mangrove_area,m2$long_changenp)
+        m3 <- cbind(m2$Longitude,m2$Latitude,m2$mangrove_area,m2$long_changeholes)
         m3 <- m3[order(m3[,3]),]
         m3
         
         library(raster)
-        r07 <- raster::raster("C:\\Users\\basti\\Box\\Data\\Oceans\\Mangroves\\mangrove_watch\\rasters\\gmw_v3_2007_gtiff//gmw_v3_2007/GMW_S03W045_2007_v3.tif")
-        r20 <- raster::raster("C:\\Users\\basti\\Box\\Data\\Oceans\\Mangroves\\mangrove_watch\\rasters\\gmw_v3_2020_gtiff//gmw_v3_2020/GMW_S03W045_2020_v3.tif")
+        r07 <- raster::raster("C:\\Users\\basti\\Box\\Data\\Oceans\\Mangroves\\mangrove_watch\\rasters\\gmw_v3_2007_gtiff//gmw_v3_2007/GMW_S20E034_2007_v3.tif")
+        r20 <- raster::raster("C:\\Users\\basti\\Box\\Data\\Oceans\\Mangroves\\mangrove_watch\\rasters\\gmw_v3_2020_gtiff//gmw_v3_2020/GMW_S20E034_2020_v3.tif")
         #here
+        plot(r20)
 
         patches07 <- raster::clump(r07) 
         df_p07 <- as.data.frame(patches07, xy=TRUE)
@@ -752,7 +383,7 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
 
 
         bbox <- c(left = min(df_p07$x), bottom = min(df_p07$y), right = max(df_p07$x), top =max(df_p07$y))
-        map <- get_stamenmap(bbox, maptype = "terrain-background", zoom = 11)
+        map <- get_stamenmap(bbox, maptype = "terrain-background", zoom = 10)
         ggmap(map)
         #bbox_zoom <- c(left = -44.9, bottom = -3.4, right = -44.4, top =-3)
         #map <- get_stamenmap(bbox_zoom, maptype = "terrain-background", zoom = 12)
@@ -808,11 +439,12 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
                                 labels = pal_scico[1:(dim(patch_counts07)[1])])
 
             map_patch_07 <- ggmap(map) +
-                geom_raster(data = df_p07[which(!is.na(df_p07$patches)),], aes(x = x, y = y, fill = color), na.rm = TRUE, hjust = 0, vjust = 0) +
+                geom_raster(data = df_p07[which(!is.na(df_p07$patches)),], 
+                aes(x = x, y = y, fill = color), na.rm = TRUE, hjust = 0, vjust = 0) +
                 scale_fill_manual(values = levels(df_p07$color),guide="none") +    
                 coord_quickmap()+
-                ggtitle("2007")+theme_map()+
-                coord_sf(xlim = c(-44.9, -44.4), ylim = c(-3, -3.4))
+                ggtitle("2007")+theme_map()#+
+                #coord_sf(xlim = c(-44.9, -44.4), ylim = c(-3, -3.4))
             map_patch_07
             
             df_p20$color <- factor(df_p20$patch, levels = unique(df_p20$patch), 
@@ -823,7 +455,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
                 scale_fill_manual(values = levels(df_p20$color),guide="none") +    
                 coord_quickmap()+
                 ggtitle("2020")+
-                coord_sf(xlim = c(-44.9, -44.4), ylim = c(-3, -3.4))+theme_map()
+                #coord_sf(xlim = c(-44.9, -44.4), ylim = c(-3, -3.4))+
+                theme_map()
             map_patch_20
 
             ggarrange(map_patch_07,map_patch_20,ncol=1)
@@ -845,19 +478,287 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
             library(gridExtra)    
             grid.arrange(grobs=list(map_patch_07,map_patch_20,patch_area_bar,leg_plot), 
                 nrow=1,ncol=4,widths=c(5,5,2,1))
-            ggsave(file="C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Figures\\Draft\\patches_2007_2020.png",g)
+            #ggsave(file="C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Figures\\Draft\\patches_2007_2020.png",g)
 
             g <- arrangeGrob(map_patch_07,map_patch_20,patch_area_bar,leg_plot, ncol=4,nrow=1,widths=c(5,5,2,1))
             ggsave(file="C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Figures\\patches_2007_2020.png",g)
 
+        ## Holes analysis with rasters
+            ## Zoom in: Conver raster to holes raster and eliminate the patches in the borders (start)
+                rec_matrix <- matrix(c(1, 1, NA,
+                                NA, NA, 1), 
+                                ncol = 3, byrow = TRUE)
 
+                                
+                r07z_holes <- reclassify(r07_zoomed, rec_matrix, right = NA)
+                plot(r07z_holes)
+                r20z_holes <- reclassify(r20_zoomed, rec_matrix, right = NA)
+                library("landscapemetrics")
+                
+                lsm_l_np(r07z_holes)
+                                ###
+                                    edge_clump_values07 <- unique(c(r07z_holes[1, ],   # Top row
+                                                    r07z_holes[nrow(r07z_holes), ],   # Bottom row
+                                                    r07z_holes[, 1],   # Left column
+                                                    r07z_holes[, ncol(r07z_holes)], na.rm=TRUE    # Right column
+                                                    ))
+                                    r07z_holes[r07z_holes %in% edge_clump_values07] <- NA
+                                ###
+
+                patches07z <- raster::clump(r07z_holes)
+                plot(patches07z)
+                plot(r07z_holes)
+                patches20z <- raster::clump(r20z_holes)
+                
+                edge_clump_values07 <- unique(c(patches07z[1, ],   # Top row
+                                patches07z[nrow(patches07z), ],   # Bottom row
+                                patches07z[, 1],   # Left column
+                                patches07z[, ncol(patches07z)], na.rm=TRUE    # Right column
+                                ))
+                patches07z[patches07z %in% edge_clump_values07] <- NA
+
+                edge_clump_values20 <- unique(c(patches20z[1, ],   # Top row
+                                patches20z[nrow(patches20z), ],   # Bottom row
+                                patches20z[, 1],   # Left column
+                                patches20z[, ncol(patches20z)], na.rm=TRUE    # Right column
+                                ))
+                patches20z[patches20z %in% edge_clump_values20] <- NA
+                holes20 <-  clump(patches20z)
+                holes07 <-  clump(patches07z)
+                
+                eholes20 <- (holes20*(holes07*0))
+                plot(eholes20)                
+                plot(holes20)      
+                plot(holes07)
+
+                plot(area(holes07)*(holes07*0+1))
+                area_07 <- data.frame(area=values(area(holes07)*(holes07*0+1)))
+                area_20 <- data.frame(area=values(area(holes20)*(holes20*0+1)))
+                area_07$clump <- values(holes07)
+                area_20$clump <- values(holes20)
+                area_dif07 <- aggregate(area~clump,data=area_07,FUN="sum")
+                area_dif07$year <- 2007            
+                
+                area_dif07$color <- factor(area_dif07$clump, levels = unique(area_dif07$clump), 
+                                    labels = pal_scico[1:(dim(area_dif07$clump)[1])])
+
+                area_dif20 <- aggregate(area~clump,data=area_20,FUN="sum")
+                area_dif20$year <- 2020  
+                    
+                    max_patch <- max(area_dif20$clump,na.rm=TRUE)
+                    max(area_dif07$clump,na.rm=TRUE)
+                    
+                    pal_scico <- scico(max_patch, palette = 'lapaz')
+                    #pal_scico <- scico(dim(df_r20eh)[1], palette = 'batlow')
+                    area_dif20$color <- factor(area_dif20$clump, levels = unique(area_dif20$clump), 
+                                            labels = pal_scico[(1+max_patch-max(area_dif20$clump,na.rm=TRUE)):max_patch])
+                                            #labels = pal_scico[(1:max(area_dif20$clump,na.rm=TRUE))])
+                    max(as.double(levels(factor(area_dif20$clump))))/max(as.double(levels(factor(area_dif07$clump))))
+                                            
+                    area_dif07$color <- factor(area_dif07$clump, levels = unique(area_dif07$clump), 
+                                            labels = pal_scico[(1+max_patch-max(area_dif07$clump,na.rm=TRUE)):max_patch])
+
+                areas_holes<- rbind(area_dif20,area_dif07)
+                aggregate(area~year,data=areas_holes,FUN="sum")
+                0.004306102/0.004695229 #size of holes
+                39.69364/39.58078 #area change
+
+                holes_area_bar <- ggplot(areas_holes, aes(x = factor(year), y = (area), fill = factor(clump))) +
+                    geom_bar(stat = "identity", width = 1, color = "transparent") +
+                    scale_fill_manual(values =(as.character(areas_holes$color)),guide="none") +
+                    theme_minimal() +
+                    #scale_y_continuous(trans="log")
+                    labs(title = "",x="Year",y=bquote("Area (" ~ km^2 ~ ")"))
+                holes_area_bar
+
+                
+                df_holes07 <- as.data.frame(holes07, xy=TRUE)
+                df_holes20 <- as.data.frame(holes20, xy=TRUE)
+                glimpse(df_holes07)
+                
+                df_holes07$color <- factor(df_holes07$clumps, levels = unique(df_holes07$clumps), 
+                                            #labels = pal_scico[(1+max_patch-max(area_dif07$clump,na.rm=TRUE)):max_patch])
+                                            labels = pal_scico[(1:max(area_dif07$clump,na.rm=TRUE))])
+                df_holes20$color <- factor(df_holes20$clumps, levels = unique(df_holes20$clumps), 
+                                            labels = pal_scico[(1+max_patch-max(area_dif20$clump,na.rm=TRUE)):max_patch])
+
+                bbox <- c(left = min(df_holes20$x), bottom = min(df_holes20$y), right = max(df_holes20$x), top =max(df_holes20$y))
+                map <- get_stamenmap(bbox, maptype = "terrain-background", zoom = 10)
+        
+                df_r07 <- as.data.frame(r07_zoomed, xy=TRUE)
+                glimpse(df_r07)
+                map_patch_07 <- ggmap(map) +
+                    geom_raster(data = df_r07, aes(x = x, y = y),fill="black")+
+                    geom_raster(data = df_r07[which(!is.na(df_r07$GMW_S20E034_2007_v3)),], 
+                    aes(x = x, y = y), fill="gray17",na.rm = TRUE, hjust = 0, vjust = 0)+
+                    geom_raster(data = df_holes07[which(!is.na(df_holes07$clumps)),], aes(x = x, y = y, fill = color), na.rm = TRUE, hjust = 0, vjust = 0) +
+                    scale_fill_manual(values = levels(df_holes07$color),guide="none") +    
+                    coord_quickmap()+
+                    ggtitle("2007 - 6147 Gaps")+theme_void()+
+                coord_sf(xlim = c(34.6, 35), ylim = c(-20.8, -20.3))
+
+                df_r20 <- as.data.frame(r20_zoomed, xy=TRUE)
+                glimpse(df_r20)
+                
+                map_patch_20 <- ggmap(map) +
+                    geom_raster(data = df_r20, aes(x = x, y = y),fill="black")+
+                    geom_raster(data = df_r20[which(!is.na(df_r20$GMW_S20E034_2020_v3)),],aes(x = x, y = y), fill="gray17",na.rm = TRUE, hjust = 0, vjust = 0) +
+                    geom_raster(data = df_holes20[which(!is.na(df_holes20$clumps)),], aes(x = x, y = y, fill = (color)), na.rm = TRUE, hjust = 0, vjust = 0) +
+                    scale_fill_manual(values = levels(df_holes20$color),guide="none") +    
+                    coord_quickmap()+
+                    ggtitle("2020 - 7096 gaps (15% increase)")+ theme_void()+
+                coord_sf(xlim = c(34.6, 35), ylim = c(-20.8, -20.3))
+                map_patch_20
+
+                just_for_legend <- ggmap(map) +
+                    geom_raster(data = df_holes20[which(!is.na(df_holes20$clumps)),], aes(x = x, y = y, fill = clumps), na.rm = TRUE, hjust = 0, vjust = 0) +
+                    scale_fill_scico(palette="lapaz",direction=-1,trans="reverse") +
+                    #scale_fill_manual(values = levels(df_holes20$color)) +    
+                    coord_quickmap()+
+                    ggtitle("2020")+
+                    labs(fill="Number of \nnon-vegetated \nfragments")
+                    just_for_legend
+                    
+                    leg <- get_legend(just_for_legend)
+                    leg_plot <- as_ggplot(leg)
+
+                plot_holes <- ggarrange(map_patch_07,map_patch_20,holes_area_bar,leg_plot,nrow=1,ncol=4,widths=c(5,5,3,2))
+                plot_holes
+                #annotate_figure(plot_holes, top = text_grob("", 
+                #color = "black", face = "bold", size = 14))
+
+                ggsave("Figures/Draft/holes_2007_2020.png",dpi=900)
+            ## Zoom in: Conver raster to holes raster and eliminate the patches in the borders (start)
+            
+            ## Tile: Conver raster to holes raster and eliminate the patches in the borders (start)
+                rec_matrix <- matrix(c(1, 1, NA,
+                                NA, NA, 1), 
+                                ncol = 3, byrow = TRUE)
+                r07z_holes <- reclassify(r07, rec_matrix, right = NA)
+                r20z_holes <- reclassify(r20, rec_matrix, right = NA)
+
+                patches07z <- raster::clump(r07z_holes)
+                patches20z <- raster::clump(r20z_holes)
+
+                
+                edge_clump_values07 <- unique(c(patches07z[1, ],   # Top row
+                                patches07z[nrow(patches07z), ],   # Bottom row
+                                patches07z[, 1],   # Left column
+                                patches07z[, ncol(patches07z)], na.rm=TRUE    # Right column
+                                ))
+                patches07z[patches07z %in% edge_clump_values07] <- NA
+
+                edge_clump_values20 <- unique(c(patches20z[1, ],   # Top row
+                                patches20z[nrow(patches20z), ],   # Bottom row
+                                patches20z[, 1],   # Left column
+                                patches20z[, ncol(patches20z)], na.rm=TRUE    # Right column
+                                ))
+                patches20z[patches20z %in% edge_clump_values20] <- NA
+                holes20 <-  clump(patches20z)
+                holes07 <-  clump(patches07z)
+                
+                eholes20 <- (holes20*(holes07*0))
+                # plot(eholes20)                
+                # plot(holes20)      
+                # plot(holes07)
+
+                # plot(area(holes07)*(holes07*0+1))
+                area_07 <- data.frame(area=values(area(holes07)*(holes07*0+1)))
+                area_20 <- data.frame(area=values(area(holes20)*(holes20*0+1)))
+                area_07$clump <- values(holes07)
+                area_20$clump <- values(holes20)
+                area_dif07 <- aggregate(area~clump,data=area_07,FUN="sum")
+                area_dif07$year <- 2007       
+                glimpse(area_dif07)     
+                
+                max_patch <- max(area_dif20$clump,na.rm=TRUE)
+                pal_scico <- scico(max_patch, palette = 'romaO')
+                area_dif07$color <- factor(area_dif07$clump, levels = unique(area_dif07$clump), 
+                                    labels = pal_scico[1:(max(area_dif07$clump,na.rm=TRUE))])
+
+                area_dif20 <- aggregate(area~clump,data=area_20,FUN="sum")
+                area_dif20$year <- 2020  
+                    
+                    #max_patch <- max(area_dif20$clump,na.rm=TRUE)
+                    #pal_scico <- scico(max_patch, palette = 'romaO')
+                    ##pal_scico <- scico(dim(df_r20eh)[1], palette = 'batlow')
+                    #area_dif20$color <- factor(area_dif20$clump, levels = unique(area_dif20$clump), 
+                    #                       labels = pal_scico[(1+max_patch-max(area_dif20$clump,na.rm=TRUE)):max_patch])
+                    #                      #labels = pal_scico[(1:max(area_dif20$clump,na.rm=TRUE))])
+                    levels(factor(area_dif20$clump))
+                                            
+                    area_dif07$color <- factor(area_dif07$clump, levels = unique(area_dif07$clump), 
+                                            labels = pal_scico[(1+max_patch-max(area_dif07$clump,na.rm=TRUE)):max_patch])
+
+                areas_holes<- rbind(area_dif20,area_dif07)
+                aggregate(area~year,data=areas_holes,FUN="mean")
+
+                class(areas_holes$color)
+                
+                holes_area_bar <- ggplot(areas_holes, aes(x = factor(year), y = (area), fill = factor(clump))) +
+                    geom_bar(stat = "identity", width = 1, color = "transparent") +
+                    scale_fill_manual(values =(as.character(areas_holes$color)),guide="none") +
+                    theme_minimal() +
+                    #scale_y_continuous(trans="log")
+                    labs(title = "",x="Year",y="Area (km^2)")
+                holes_area_bar
+
+                
+                df_holes07 <- as.data.frame(holes07, xy=TRUE)
+                df_holes20 <- as.data.frame(holes20, xy=TRUE)
+                glimpse(df_holes07)
+                
+                df_holes07$color <- factor(df_holes07$clumps, levels = unique(df_holes07$clumps), 
+                                            #labels = pal_scico[(1+max_patch-max(area_dif07$clump,na.rm=TRUE)):max_patch])
+                                            labels = pal_scico[(1:max(area_dif07$clump,na.rm=TRUE))])
+                df_holes20$color <- factor(df_holes20$clumps, levels = unique(df_holes20$clumps), 
+                                            labels = pal_scico[(1+max_patch-max(area_dif20$clump,na.rm=TRUE)):max_patch])
+
+                map_patch_07 <- ggmap(map) +
+                    geom_raster(data = df_holes07[which(!is.na(df_holes07$clumps)),], aes(x = x, y = y, fill = color), na.rm = TRUE, hjust = 0, vjust = 0) +
+                    scale_fill_manual(values = levels(df_holes07$color),guide="none") +    
+                    coord_quickmap()+
+                    ggtitle("2007")
+
+                map_patch_20 <- ggmap(map) +
+                    geom_raster(data = df_holes20[which(!is.na(df_holes20$clumps)),], aes(x = x, y = y, fill = color), na.rm = TRUE, hjust = 0, vjust = 0) +
+                    scale_fill_manual(values = levels(df_holes20$color),guide="none") +    
+                    coord_quickmap()+
+                    ggtitle("2020")
+                
+                df_holes20$color <- as.double(df_holes20$color)
+                just_for_legend <- ggmap(map) +
+                    geom_raster(data = df_holes20[which(!is.na(df_holes20$clumps)),], aes(x = x, y = y, fill = color), na.rm = TRUE, hjust = 0, vjust = 0) +
+                    scale_fill_scico(palette="romaO",direction=-1,trans="reverse") +
+                    #scale_fill_manual(values = levels(df_holes20$color)) +    
+                    coord_quickmap()+
+                    ggtitle("2020")+
+                    labs(fill="Number of \nnon-vegetated \nfragments")
+                    just_for_legend
+                    
+                    leg <- get_legend(just_for_legend)
+                    leg_plot <- as_ggplot(leg)
+
+                plot_holes <- ggarrange(map_patch_07,map_patch_20,holes_area_bar,leg_plot,nrow=1,ncol=4,widths=c(5,5,3,2))
+
+                annotate_figure(plot_holes, top = text_grob("Non-vegetated fragments within mangroves", 
+                color = "black", face = "bold", size = 14))
+
+                ggsave("Figures/holes_2007_2020.png",dpi=300)
+            ## Conver raster to holes raster and eliminate the patches in the borders (start)
+            
+            patches07z <- raster::clump(r07_zoomed)
+            
+
+            patches20z <- raster::clump(r20_zoomed)
+    ## Holes analysis with rasters
 
         ymin <- -3
         ymax <- -2
         xmin <- 133
         xmax <- 134
         e <- raster::extent(c(xmin, xmax, ymin, ymax))  # Replace xmin, xmax, ymin, ymax with the desired coordinates
-        raster::extent(r20)
+        e <- raster::extent(r20)
         plot(r20)
         # Crop the raster
         r20_zoomed <- crop(r20, e)
@@ -865,7 +766,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
         # Now you can plot the zoomed raster
         plot(r20_zoomed)
 
-        bbox <- c(left = xmin, bottom = ymin, right = xmax, top =ymax)
+        #bbox <- c(left = xmin, bottom = ymin, right = xmax, top =ymax)
+        bbox <- c(left = min(df_p07$x), bottom = min(df_p07$y), right = max(df_p07$x), top =max(df_p07$y))
         map <- get_stamenmap(bbox, maptype = "terrain-background", zoom = 9)
             # Convert the raster to a dataframe
         df_r20 <- as.data.frame(r20_zoomed, xy=TRUE)
@@ -878,7 +780,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
             geom_raster(data = df_r20, aes(x = x, y = y, fill = cover), na.rm = TRUE, hjust = 0, vjust = 0) +
             scale_fill_gradient(low = "blue", high = "blue", na.value = "transparent",guide="none") +
             coord_quickmap()+
-        ggtitle("2020")
+        ggtitle("2020")+
+        coord_sf(xlim = c(34.5, 35), ylim = c(-21, -20))
         cover_2020
 
         r07_zoomed <- crop(r07, e)
@@ -891,7 +794,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
         geom_raster(data = df_r07, aes(x = x, y = y, fill = cover), na.rm = TRUE, hjust = 0, vjust = 0) +
         scale_fill_gradient(low = "blue", high = "blue", na.value = "transparent",guide="none") +
         coord_quickmap()+
-        ggtitle("2007")
+        ggtitle("2007")+
+        coord_sf(xlim = c(34.5, 35), ylim = c(-21, -20))
 
         cover_maps <- ggarrange(cover_2007,cover_2020)
 
@@ -902,9 +806,12 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
         geom_raster(data = df_r20, aes(x = x, y = y, fill = loss), na.rm = TRUE, hjust = 0, vjust = 0) +
         scale_fill_gradient(low = "red", high = "red", na.value = "transparent",guide="none") +
         coord_quickmap()+
-        ggtitle("Loss")
+        ggtitle("Loss") +
+        coord_sf(xlim = c(34.5, 35), ylim = c(-21, -20))
 
-        ggarrange(cover_maps,cover_2020loss,nrow=2,ncol=1)    
+
+        ggarrange(cover_maps,cover_2020loss,nrow=2,ncol=1)   
+        ggarrange(cover_2007,cover_2020,cover_2020loss,nrow=1,ncol=3) 
         glimpse(df_r20)
 
         ## Holes analysis start
@@ -1082,12 +989,12 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
 
     ggarrange(plot_sum_gaps,plot_sum_area,ncol=1)
 
-    np_mcn_sum <- aggregate(np~year,FUN="sum",data=mcn)
-    np_mcn_sum$mangrove_area <- area_mcn_sum$mangrove_area
-    glimpse(np_mcn_sum)
-    ggplot(np_mcn_sum)+
-    geom_point(aes(x=year,y=np/mangrove_area),alpha=0.2)+
-    geom_smooth(aes(x=year,y=np/mangrove_area))+
+    holes_mcn_sum <- aggregate(holes~year,FUN="sum",data=mcn)
+    holes_mcn_sum$mangrove_area <- area_mcn_sum$mangrove_area
+    glimpse(holes_mcn_sum)
+    ggplot(holes_mcn_sum)+
+    geom_point(aes(x=year,y=holes/mangrove_area),alpha=0.2)+
+    geom_smooth(aes(x=year,y=holes/mangrove_area))+
     theme_bw()
     
     ggplot(mcn)+
@@ -1133,31 +1040,31 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
 
 
 
-    np_ag <- aggregate(np~R5+year+countrycode,data=mcn,FUN="sum")
-    glimpse(np_ag)
-    np_ag <- aggregate(np~R5+year,data=np_ag,FUN="mean")
-    np2015 <- np_ag[which(np_ag$year %in% c(2015)),]
-    np2020 <- np_ag[which(np_ag$year %in% c(2020)),]
-    np2015$np2020 <- np2020$np
-    np2015$dif <- 100*(np2015$np2020 - np2015$np)/np2015$np
+    holes_ag <- aggregate(holes~R5+year+countrycode,data=mcn,FUN="sum")
+    glimpse(holes_ag)
+    holes_ag <- aggregate(holes~R5+year,data=holes_ag,FUN="mean")
+    holes2015 <- holes_ag[which(holes_ag$year %in% c(2015)),]
+    holes2020 <- holes_ag[which(holes_ag$year %in% c(2020)),]
+    holes2015$holes2020 <- holes2020$holes
+    holes2015$dif <- 100*(holes2015$holes2020 - holes2015$holes)/holes2015$holes
 
-    ggplot(np2015)+
+    ggplot(holes2015)+
     geom_histogram(aes(x=factor(year),y=dif,fill=R5),stat="identity",bins=7,position="dodge")+
     theme_bw()+
     xlab("Year")+
     ylab("Number of patches change (%)")+ggtitle("Mangrove patches change (2015 to 2020)")
-    #ggsave("Figures/Mangrove_np_change.png")
+    #ggsave("Figures/Mangrove_holes_change.png")
 
     glimpse(mcn)
-    np_ag <- aggregate(patch_size~R5+year+countrycode,data=mcn,FUN="mean")
-    glimpse(np_ag)
-    np_ag <- aggregate(patch_size~R5+year,data=np_ag,FUN="mean")
-    np2015 <- np_ag[which(np_ag$year %in% c(2015)),]
-    np2020 <- np_ag[which(np_ag$year %in% c(2020)),]
-    np2015$patch_size2020 <- np2020$patch_size
-    np2015$dif <- 100*(np2015$patch_size2020 - np2015$patch_size)/np2015$patch_size
+    holes_ag <- aggregate(patch_size~R5+year+countrycode,data=mcn,FUN="mean")
+    glimpse(holes_ag)
+    holes_ag <- aggregate(patch_size~R5+year,data=holes_ag,FUN="mean")
+    holes2015 <- holes_ag[which(holes_ag$year %in% c(2015)),]
+    holes2020 <- holes_ag[which(holes_ag$year %in% c(2020)),]
+    holes2015$patch_size2020 <- holes2020$patch_size
+    holes2015$dif <- 100*(holes2015$patch_size2020 - holes2015$patch_size)/holes2015$patch_size
 
-    ggplot(np2015)+
+    ggplot(holes2015)+
     geom_histogram(aes(x=factor(year),y=dif,fill=R5),stat="identity",bins=7,position="dodge")+
     theme_bw()+
     xlab("Year")+
@@ -1165,12 +1072,12 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
     ggsave("Figures/Mangrove_patchsize_change.png")
 
     ggplot(mcn)+
-    geom_line(aes(x=year,y=(np),group=gridcell_id,color=R5),alpha=0.2)+
+    geom_line(aes(x=year,y=(holes),group=gridcell_id,color=R5),alpha=0.2)+
     #coord_cartesian(ylim=c(-1,1),xlim=c(2016,2020))+
     coord_cartesian(xlim=c(2016,2020))+
     theme_bw()+
     ylab("Log Mangrove area")
-    ggsave("Figures/Mangrove_np.png")
+    ggsave("Figures/Mangrove_holes.png")
 
     glimpse(mcn)
     ggplot(mcn)+
@@ -1181,55 +1088,55 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
     ylab("Log Patch size")
     ggsave("Figures/Mangrove_patchsize.png")
 
-    np_ag <- aggregate(patch_size~R5+year,data=mcn,FUN="mean")
-    glimpse(np_ag)
-    np2015 <- np_ag[which(np_ag$year %in% c(2015)),]
-    np2020 <- np_ag[which(np_ag$year %in% c(2020)),]
-    np2015$patch_size2020 <- np2020$patch_size
-    np2015$dif <- 100*(np2015$patch_size2020 - np2015$patch_size)/np2015$patch_size
+    holes_ag <- aggregate(patch_size~R5+year,data=mcn,FUN="mean")
+    glimpse(holes_ag)
+    holes2015 <- holes_ag[which(holes_ag$year %in% c(2015)),]
+    holes2020 <- holes_ag[which(holes_ag$year %in% c(2020)),]
+    holes2015$patch_size2020 <- holes2020$patch_size
+    holes2015$dif <- 100*(holes2015$patch_size2020 - holes2015$patch_size)/holes2015$patch_size
 
-    ggplot(np2015)+
+    ggplot(holes2015)+
     geom_histogram(aes(x=factor(year),y=dif,fill=R5),stat="identity",bins=7,position="dodge")+
     theme_bw()+
     xlab("Year")+
     ylab("Number of patches change (%)")+ggtitle("Mangrove patches change (2015 to 2020)")
-    #ggsave("Figures/Mangrove_np_change.png")
+    #ggsave("Figures/Mangrove_holes_change.png")
 
 
     #table(mcn$annual_area_change)
     model3 <- felm(log(mangrove_area)~year|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
     summary(model3)
 
-    change_np <- ggplot(filtered_mcn)+
-    geom_line(aes(x=year,y=annual_np_change,group=gridcell_id,color=continent),alpha=0.2)+
+    change_holes <- ggplot(filtered_mcn)+
+    geom_line(aes(x=year,y=annual_holes_change,group=gridcell_id,color=continent),alpha=0.2)+
     coord_cartesian(xlim=c(2016,2020))+
     ylab("Fragmentation change")+
     theme_bw()
     
-    model4 <- felm(annual_np_change~year|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
+    model4 <- felm(annual_holes_change~year|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
     summary(model4)
 
-    ggarrange(change_area,change_np,common.legend=T,legend="bottom")
+    ggarrange(change_area,change_holes,common.legend=T,legend="bottom")
     ggsave("Figures/Mangrove_change.png")
 
     ggplot(filtered_mcn)+
-    geom_line(aes(x=year,y=(np),group=gridcell_id,color=continent),alpha=0.2)+
+    geom_line(aes(x=year,y=(holes),group=gridcell_id,color=continent),alpha=0.2)+
     coord_cartesian(xlim=c(2016,2020))+
     theme_bw()
 
     ggplot(filtered_mcn)+
-    geom_line(aes(x=year,y=log(mangrove_area/np),group=gridcell_id,color=continent),alpha=0.2)+
+    geom_line(aes(x=year,y=log(mangrove_area/holes),group=gridcell_id,color=continent),alpha=0.2)+
     coord_cartesian(xlim=c(2016,2020))+
     theme_bw()
     
-    model5 <- felm(log(np)~sst+I(sst^2)+year+log(mangrove_area)|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
+    model5 <- felm(log(holes)~sst+I(sst^2)+year+log(mangrove_area)|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
     summary(model5)
 
-    filtered_mcn$patch_area <- filtered_mcn$mangrove_area/filtered_mcn$np
+    filtered_mcn$patch_area <- filtered_mcn$mangrove_area/filtered_mcn$holes
 
 
     ggplot(mcn)+
-    geom_line(aes(x=(sst),y=annual_np_change,group=gridcell_id,color=continent),alpha=0.2)+
+    geom_line(aes(x=(sst),y=annual_holes_change,group=gridcell_id,color=continent),alpha=0.2)+
     theme_bw()
 
 ## Plots Mangroves (start)

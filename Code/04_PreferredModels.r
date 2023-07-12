@@ -179,17 +179,18 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         
     #Models SST Hottest (start)
         model_area_ssthot <- felm(log(mangrove_area)~
-            sst + I(sst^2) + 
+            #sst + I(sst^2) + 
+            sst_hottest + I(sst_hottest^2)+
             #rich*sst + rich*I(sst^2) + 
             #rich:sst_hottest + rich:I(sst_hottest^2) + 
             #sst:sst_hottest + sst:I(sst_hottest^2) + 
             #sst_hottest + I(sst_hottest^2) + 
             #sst:hot_location_alldata + I(sst^2):hot_location_alldata + 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
-            I(Mean_Precipitation^2) +
+             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+I(log(GDP/Population))+ year*factor(gridcell_id) + factor(gridcell_id):I(year^2)
-            |0|0|gridcell_id,
+            factor(rich)*logGDPpc+I(log(GDP/Population))
+            |gridcell_id + year+ countrycode+R5|0|gridcell_id,
         data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),])
         summary(model_area_ssthot)
         
@@ -198,9 +199,11 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         sq_estimate_preci_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"Mean_Precipitation","Area")
 
 
+        #model_holes_ssthot <- felm(log(holes)~
         model_holes_ssthot <- felm(log(holes/mangrove_area)~
             #sst + I(sst^2)+
-            sst_hottest + I(sst_hottest^2) + 
+            sst_hottest + I(sst_hottest^2) +
+            #log(mangrove_area)+ 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
@@ -214,7 +217,8 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         sq_estimate_preci_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"Mean_Precipitation","Gaps")
 
         model_np_ssthot <- felm(log(np/mangrove_area)~
-            #sst + I(sst^2)+
+        #model_np_ssthot <- felm(log(np)~    #sst + I(sst^2)+
+            #log(mangrove_area)+
             sst_hottest + I(sst_hottest^2) + 
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
@@ -244,10 +248,23 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         geom_hline(aes(yintercept=0),linetype="dashed")+
         ylab("Effect of 1C increase on\n mangrove characteristics")+xlab("Monthly Average SST in the Hottest Month (C)")+
         guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
-        scale_color_manual(values =c(pal_lapaz[1],"indianred")) +
-        scale_fill_manual(values = c(pal_lapaz[1],"indianred"))#+
+        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
         #theme(strip.background =element_rect(fill=c(pal_roma[9])))
         Models_ssthot_plot
+
+        Models_ssthot_plot_area <- ggplot(Models_sst_hot[which(Models_sst_hot$exp=="Area"),])+
+        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+        theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+        geom_hline(aes(yintercept=0),linetype="dashed")+
+        ylab("Effect of 1°C increase on \n Mangrove Area (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")+
+        guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+        #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+        Models_ssthot_plot_area
+
 
         Models_preci_hot$significant <- "Not significant (p > 0.05)"
         Models_preci_hot$significant[which(Models_preci_hot$p_value<0.05)] <- "Significant (p < 0.05)"
@@ -257,22 +274,35 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
         theme_bw()  + facet_wrap(~exp,ncol=3)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase on\n mangrove characteristics")+xlab("Monthly Average SST in the Hottest Month (C)")+
+        ylab("Effect of 1mm increase on\n mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
         guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
-        scale_color_manual(values =c(pal_lapaz[1],"indianred")) +
-        scale_fill_manual(values = c(pal_lapaz[1],"indianred"))#+
+        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
         #theme(strip.background =element_rect(fill=c(pal_roma[9])))
         Models_preci_hot_plot
+
+        Models_preci_hot_plot_area <- ggplot(Models_preci_hot[which(Models_preci_hot$exp=="Area"),])+
+        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+        theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+        geom_hline(aes(yintercept=0),linetype="dashed")+
+        ylab("Effect of 1mm rain increase on \n Mangrove Area (% Change)")+xlab("Mean Monthly Precipitation (mm)")+
+        guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+        #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+        Models_preci_hot_plot_area
 
 
         
         gdp_coefs_ssthot <- plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot, ci_level = 0.90,
-            omit.coefs = c("logGDPpc*rich",
-                #"I(log(GDP/Population))",
-                "log(mangrove_area)","sst","I(sst^2)","Mean_Salinity","I(Mean_Salinity^2)","I(log(ntl)^2)","log(ntl)",
-            "sst_hottest" , "I(sst_hottest^2)", "temp","I(temp^2)",
-            "I(Mean_Precipitation^2)","Mean_Precipitation"),
+        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
             model.names=c("Area","Patches","Gaps"))
+        gdp_coefs_ssthot
+
+        gdp_coefs_ssthot_area <- plot_coefs(model_area_ssthot, ci_level = 0.90,
+        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"))
+        gdp_coefs_ssthot_area
     
     #Models SST Hottest (end)
 
@@ -302,8 +332,11 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         ggplot(mcn,aes(x=log(holes/mangrove_area),y=log(GDP/Population)))+geom_point()
         glimpse(mcn)
         
+        
+        #model_holes_ssthot <- felm(log(holes)~
         model_holes_ssthot <- felm(log(holes/mangrove_area)~
             sst + I(sst^2)+
+            #log(mangrove_area)+ 
             #sst_hottest + I(sst_hottest^2) + 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
             #temp + I(temp^2)+
@@ -319,6 +352,8 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         #sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst_hottest","Gaps")
 
         model_np_ssthot <- felm(log(np/mangrove_area)~
+        #model_np_ssthot <- felm(log(np)~
+            #log(mangrove_area)+
             sst + I(sst^2)+
             #sst_hottest + I(sst_hottest^2) + 
             I(Mean_Precipitation^2) +
@@ -346,11 +381,7 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         Models_preci_sst_plot
 
         gdp_coefs_sst <- plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot, ci_level = 0.90,
-            omit.coefs = c("logGDPpc*rich",
-                #"I(log(GDP/Population))",
-                "log(mangrove_area)","sst","I(sst^2)","Mean_Salinity","I(Mean_Salinity^2)","I(log(ntl)^2)","log(ntl)",
-            "sst_hottest" , "I(sst_hottest^2)", "temp","I(temp^2)",
-            "I(Mean_Precipitation^2)","Mean_Precipitation"),
+        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
             model.names=c("Area","Patches","Gaps"))
 
     #Models SSTs (start)    
@@ -366,11 +397,11 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
         theme_bw() + facet_wrap(~exp,ncol=3)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase on \nmangrove characteristics")+xlab("Mean Annual SST (C)") +
+        ylab("Effect of 1mm increase on \nmangrove characteristics")+xlab("Mean Monthly Precipitation (mm)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
-        scale_color_manual(values = c(pal_lapaz[1],"indianred")) +
-        scale_fill_manual(values = c(pal_lapaz[1],"indianred")) 
+        scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) 
         #theme(strip.background =element_rect(fill=c(pal_roma[8])))
         #theme(strip.text = element_text(colour = 'white'))
         Models_preci_sst_plot
@@ -386,8 +417,8 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         ylab("Effect of 1C increase on \nmangrove characteristics")+xlab("Mean Annual SST (C)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
-        scale_color_manual(values = c(pal_lapaz[1],"indianred")) +
-        scale_fill_manual(values = c(pal_lapaz[1],"indianred")) 
+        scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) 
         #theme(strip.background =element_rect(fill=c(pal_roma[8])))
         #theme(strip.text = element_text(colour = 'white'))
         Models_sst_plot
@@ -424,12 +455,14 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
 
         
         
+        #model_holes_t <- felm(log(holes)~
         model_holes_t <- felm(log(holes/mangrove_area)~
             #sst + I(sst^2)+
             #sst_hottest + I(sst_hottest^2) + 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
             temp + I(temp^2)+
             I(Mean_Precipitation^2) +
+            #log(mangrove_area)+ 
             Mean_Precipitation +
             factor(rich)*logGDPpc+ I(log(GDP/Population))
             |gridcell_id + year+ countrycode+R5|0|gridcell_id,
@@ -442,13 +475,16 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
 
         ggplot(mcn,aes(x=year,y=(np/mangrove_area)))+geom_point()+geom_smooth()+ylim(c(0,10000))
 
+            #model_np_t <- felm(log(np)~
             model_np_t <- felm(log(np/mangrove_area)~
+            #model_np_t <- felm(log(np/mangrove_area)~
             temp+I(temp^2)+
+            #log(mangrove_area)+ 
             #sst + I(sst^2)+
             #sst_hottest + I(sst_hottest^2) + 
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc
+            factor(rich)*logGDPpc+ I(log(GDP/Population))
             |gridcell_id + year+ countrycode|0|gridcell_id,
         data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),])
         summary(model_np_t)
@@ -458,12 +494,11 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         sq_estimate_preci_np_t <- sqest(mcn[which(mcn$mangrove_area>0 &mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_np_t,"Mean_Precipitation","Patches")
 
         gdp_coefs_t <- plot_coefs(model_area_t,model_np_t,model_holes_t, ci_level = 0.90,
-            omit.coefs = c("logGDPpc*rich",
-                #"I(log(GDP/Population))",
-                "log(mangrove_area)","sst","I(sst^2)","Mean_Salinity","I(Mean_Salinity^2)","I(log(ntl)^2)","log(ntl)",
-            "sst_hottest" , "I(sst_hottest^2)", "temp","I(temp^2)",
-            "I(Mean_Precipitation^2)","Mean_Precipitation"),
+        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
             model.names=c("Area","Patches","Gaps"))
+
+        gdp_coefs_t_gaps <- plot_coefs(model_holes_t, ci_level = 0.90,
+        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"))
         
         Models_t <- rbind(sq_estimate_t_area,sq_estimate_t_holes,sq_estimate_t_np)
         Models_preci_t <- rbind(sq_estimate_preci_area_t,sq_estimate_preci_holes_t,sq_estimate_preci_np_t)
@@ -474,7 +509,7 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=exp),alpha=0.2)+
         theme_bw()  + facet_wrap(~exp,ncol=3)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase \non mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
+        ylab("Effect of 1mm increase \non mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
         guides(fill = guide_legend(title = "Dimension"),color = guide_legend(title = "Dimension"))
         Models_t_plot
 
@@ -491,8 +526,20 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         ylab("Effect of 1mm precipitation increase on \nmangrove characteristics")+xlab("Monthly Mean Precipitation (mm)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
-        scale_color_manual(values = c(pal_lapaz[1],"indianred")) +
-        scale_fill_manual(values = c(pal_lapaz[1],"indianred")) 
+        scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) 
+
+
+        Models_preci_t_plot_gaps <- ggplot(Models_preci_t[which(Models_preci_t$exp=="Gaps"),])+
+        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+        theme_bw() + #facet_wrap(~exp,ncol=3)+ 
+        geom_hline(aes(yintercept=0),linetype="dashed")+
+        ylab("Effect of 1mm rain increase on \n Fragmentation (% Change)")+xlab("Monthly Mean Precipitation (mm)") +
+        guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
+        guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
+        scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) 
         
         Models_t$significant <- "Not significant (p > 0.05)"
         Models_t$significant[which(Models_t$p_value<0.05)] <- "Significant (p < 0.05)"
@@ -505,10 +552,27 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         ylab("Effect of 1C increase on \nmangrove characteristics")+xlab("Mean Annual Air Temperature (C)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
-        scale_color_manual(values = c(pal_lapaz[1],"indianred")) +
-        scale_fill_manual(values = c(pal_lapaz[1],"indianred")) 
+        scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        theme(legend.position="bottom")
         #theme(strip.background =element_rect(fill=c(pal_roma[8])))
         #theme(strip.text = element_text(colour = 'white'))
+        Models_t_plot
+
+        leg <- get_legend(Models_t_plot)
+        leg_plot <- as_ggplot(leg)
+
+        Models_t_plot_gaps <- ggplot(Models_t[which(Models_t$exp=="Gaps"),])+
+        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+        theme_bw() + #facet_wrap(~exp,ncol=3)+ 
+        geom_hline(aes(yintercept=0),linetype="dashed")+
+        ylab("Effect of 1°C increase on \n Fragmentation (% Change)")+xlab("Mean Annual Air Temperature (C)") +
+        guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
+        guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
+        scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) 
+        Models_t_plot_gaps
 
         library("ggpubr")
         ggarrange(Models_sst_plot,Models_ssthot_plot,Models_t_plot,common.legend=T,nrow=3,legend="bottom")
@@ -519,8 +583,45 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         all_temp_plots <- ggarrange(Models_sst_plot,Models_ssthot_plot,Models_t_plot,common.legend=T,nrow=3,legend="bottom")
         all_all_plots <- ggarrange(all_temp_plots,all_preci_plots,common.legend=T,ncol=2)
         all_all_plots
+        ggsave("Figures/Draft/Supp/All_models_divided_by_mangrove_area.png")
 
-        ggarrange(gdp_coefs_sst,gdp_coefs_ssthot,gdp_coefs_t,nrow=1,ncol=3,common.legend=T)
+        ggarrange(gdp_coefs_sst+
+            ggtitle("Annual SST"),
+        gdp_coefs_ssthot+
+            theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y = element_blank(),plot.title = element_text(hjust = 0.5))+
+            ggtitle("SST Hottest Month"),
+        gdp_coefs_t+
+            theme(axis.title.y = element_blank(),axis.text.y = element_blank(),axis.ticks.y = element_blank(),plot.title = element_text(hjust = 0.5))+
+            ggtitle("Air Temperature"),
+        nrow=1,ncol=3,common.legend=T,legend="bottom")
+        ggsave("Figures/Draft/Supp/All_models_GDP_coefs.png")
+
+        
+        area_pref <- ggarrange(ggarrange(Models_ssthot_plot_area,Models_preci_hot_plot_area,common.legend=T,legend="none"),
+                gdp_coefs_ssthot_area+xlab("Estimated Effect on Area \n(% Change)"),ncol=2,widths=c(4,2))
+        #ggsave("Figures/Draft/Model_pref_area.png")
+
+        gaps_pref <- ggarrange(ggarrange(Models_t_plot_gaps,Models_preci_t_plot_gaps,legend="none"),
+                gdp_coefs_t_gaps+xlab("Estimated Effect on Fragmentation \n(% Change)"),ncol=2,widths=c(4,2))
+
+        blank_plot <- ggplot() + theme_void()
+
+        ggarrange(annotate_figure(area_pref, top = text_grob("Area Model", 
+                color = "black", face = "bold", size = 14),fig.lab.pos ="top.left"),
+                annotate_figure(gaps_pref, top = text_grob("Fragmentation Model", 
+                color = "black", face = "bold", size = 14)),
+                    ggarrange(leg_plot,blank_plot,widths=c(4,2),ncol=2),
+                    ncol=1,nrow=3,heights=c(10,10,2),common.legend=T,legend="bottom")
+        ggsave("Figures/Draft/Model_pref_area_frag.png")
+
+        annotate_figure(plot_holes, top = text_grob("", 
+                color = "black", face = "bold", size = 14))
+
+        ggarrange(ggarrange(Models_ssthot_plot_area,Models_preci_hot_plot_area,common.legend=T,legend="none"),
+                gdp_coefs_ssthot_area+xlab("Estimated effect on mangrove area \n (percent change)"),ncol=2,widths=c(4,2),
+                ggarrange(ggarrange(Models_t_plot_gaps,Models_preci_t_plot_gaps,common.legend=T,legend="none"),
+                gdp_coefs_t_gaps+xlab("Estimated effect on mangrove area \n (percent change)"),ncol=2,widths=c(4,2)),ncol=1,nrow=2)
+        
 # Dynamic Model Bins (start)
         
                 
