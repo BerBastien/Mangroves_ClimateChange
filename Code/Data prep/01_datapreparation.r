@@ -38,7 +38,7 @@ library(tidyverse)
     mcw_toolbox <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mcw_toolbox.csv")
     mangrove_df <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches.csv")
     mangrove_df_pre2015 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_pre2015.csv")
-    mangrove_df_full <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_Jul03.csv")
+    mangrove_df_full <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_Jul10.csv")
     prcip <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\precip.csv")
     temp_anom <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\temp_grid.csv")
     temp_clim <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\climgrid.csv")
@@ -144,7 +144,6 @@ library(tidyverse)
 
     
     glimpse(sst_anom_bins)
-    glimpse(mcn4)
     mcn <- merge(mcn,sst_anom_bins,by=c("gridcell_id","year"),all=TRUE)
     mcn <- mcn[,-which(names(mcn) %in% c("X.x","X.y"))]
 
@@ -212,7 +211,6 @@ library(tidyverse)
         any(table(countries_unique$unique)>1)
 
     glimpse(countries_unique)  
-    glimpse(mcn2)      
     #countries_unique <- countries_unique[,-c(2:10)]
     mcn2 <- merge(mcn,countries_unique,by=c("gridcell_id"),all.x=TRUE)
     mcn2$unique_id <- paste0(mcn2$gridcell_id,mcn2$year)
@@ -439,6 +437,8 @@ library(tidyverse)
     mean_gdp_id$rich <- 1
     mean_gdp_id$rich[which(mean_gdp_id$GDP<rich_50)] <- 0
     mcn4 <- merge(mcn4,mean_gdp_id[,c(1,3)],by="gridcell_id",all=TRUE)
+
+    #unique(mcn$countrycode[which(mcn$rich==1 & mcn$income!="high")] )
 
     
     mcn4$logGDPpc <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)

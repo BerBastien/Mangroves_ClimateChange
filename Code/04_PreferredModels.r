@@ -15,6 +15,9 @@ library("rpart.plot")
 library("plotmo")
 library(jtools)
 setwd("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange")
+library("scico")
+library(ggpubr)
+
 
 
 ## Function
@@ -45,7 +48,9 @@ setwd("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange")
             gestimated <- colSums(beta.hat*t(xmat)) 
             ci12 <- gestimated + 1.64*sqrt(diag((xmat %*% sigma) %*% t(xmat)))
             ci22 <- gestimated -  1.64*sqrt(diag((xmat %*% sigma) %*% t(xmat)))
-            return(data.frame(gestimated=gestimated,ci1=ci12,ci2=ci22,exp=exp,temp=x, p_value=p_value))
+            significant <- rep("Not significant (p > 0.05)",length(x))
+            significant[which(p_value<0.05)] <- "Significant (p < 0.05)"
+            return(data.frame(gestimated=gestimated,ci1=ci12,ci2=ci22,exp=exp,temp=x, p_value=p_value,significant=significant))
         }
 ## Function
 pal_lapaz <- scico(15, palette = 'batlow')
@@ -176,138 +181,518 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
     # Bins one-by-one (end)
 
 
+        ggplot(mcn[which(mcn$mangrove_area>0),])+
+        geom_point(aes(x=(pafrac),col=log(holes/mangrove_area),size=(mangrove_area),y=log(np/mangrove_area),group=gridcell_id),alpha=0.5)+
+        scale_colour_scico(palette="romaO")+theme_bw()+
+        xlab("Fractal Index")+ylab("Log Patches per Area")+
+        labs(col="Log Gaps \nper Area",size="Area")
+        #ggsave("Figures/Draft/Supp/Relation_Fragmentation.png",dpi=600)
+
+        quantile(mcn$pafrac[which(mcn$mangrove_area>0)],na.rm=T,0.99)
+        mcn2 <- mcn[which(mcn$pafrac<quantile(mcn$pafrac[which(mcn$mangrove_area>0)],na.rm=T,0.99)),]
+        mcn2 <- mcn2[which(mcn2$pafrac>quantile(mcn$pafrac[which(mcn$mangrove_area>0)],na.rm=T,0.01)),]
         
+        ggplot(mcn2[which(mcn2$mangrove_area>0),])+
+        geom_point(aes(col=pafrac,x=log(holes/mangrove_area),size=(mangrove_area),y=log(np/mangrove_area),group=gridcell_id),alpha=0.5)+
+        scale_colour_scico(palette="romaO")+theme_bw()+
+        xlab("Fractal Index")+ylab("Log Patches per Area")+
+        labs(col="Log Gaps \nper Area",size="Area")
+        #ggsave("Figures/Draft/Supp/Relation_Fragmentation.png",dpi=600)
+
+        ggplot(mcn2[which(mcn2$mangrove_area>0),])+
+        geom_point(aes(x=(pafrac),col=log(holes/mangrove_area),size=(mangrove_area),y=log(np/mangrove_area),group=gridcell_id),alpha=0.5)+
+        scale_colour_scico(palette="romaO")+theme_bw()+
+        xlab("Fractal Index")+ylab("Log Patches per Area")+
+        labs(col="Log Gaps \nper Area",size="Area")
+    
     #Models SST Hottest (start)
-        model_area_ssthot <- felm(log(mangrove_area)~
-            #sst + I(sst^2) + 
+        
+        
+        mcn$poor <- 1
+        mcn$poor[which(mcn$income!="low")]<-0
+        
+        ggplot(mcn[which(mcn$mangrove_area>0),])+
+        geom_point(aes(x=log(GDP/Population),y=log(GDP),col=factor(rich)))
+        glimpse(mcn)
+        quantile(mcn$logGDPpc_country[which(mcn$mangrove_area>0 & mcn$year==2018)],0.5,na.rm=T)
+        mcn$rich <- 0
+        mcn$rich[which(mcn$logGDPpc_country>quantile(mcn$logGDPpc_country[which(mcn$mangrove_area>0 & mcn$year==2018)],0.5,na.rm=T))] <- 1
+        mcn$logPop <- log(mcn$Population_Count)
+        
+        model_area_ssthot <- felm(I(-log(mangrove_area))~
             sst_hottest + I(sst_hottest^2)+
-            #rich*sst + rich*I(sst^2) + 
-            #rich:sst_hottest + rich:I(sst_hottest^2) + 
-            #sst:sst_hottest + sst:I(sst_hottest^2) + 
-            #sst_hottest + I(sst_hottest^2) + 
-            #sst:hot_location_alldata + I(sst^2):hot_location_alldata + 
-            #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
-             I(Mean_Precipitation^2) +
-            Mean_Precipitation +
-            factor(rich)*logGDPpc+I(log(GDP/Population))
+            #I(Mean_Precipitation^2) + Mean_Precipitation +
+            #log(Mean_Salinity)+
+            #factor(rich)*log(Sum_GDP_50km/Population_Count_50km)+ #
+            #I(log(GDP/Population))+ 
+            #I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+                #factor(rich)*log(Population_Count_50km)+ 
+                logGDPpc+I(logGDPpc^2)+#I(logGDPpc^3)+
+                logPop+I(logPop^2)+#I(logPop^3)
+                #year:factor(gridcell_id) + I(year^2):factor(gridcell_id) + R5:year + 
+                
+                year:countrycode + 
+                R5:year + 
+                income:year
             |gridcell_id + year+ countrycode+R5|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),])
+        data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],
+        weights=log(mcn$mangrove_area[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc))]+1))
         summary(model_area_ssthot)
+
+        # mcn <- mcn %>% 
+        #     arrange(gridcell_id, year) %>%  # Ensure data is in correct order
+        #     group_by(gridcell_id) %>%       # Define groups
+        #     mutate(time_trend = row_number()) 
+        # glimpse(mcn)
         
-        #sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst","Area")
-        sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst_hottest","Area")
-        sq_estimate_preci_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"Mean_Precipitation","Area")
+        ##Plots SST Hot
+            sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst_hottest","Area Loss")
+            sq_estimate_preci_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"Mean_Precipitation","Area Loss")
+            sq_estimate_pop_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"logPop","Area Loss")
+            sq_estimate_gdp_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"logGDPpc","Area Loss")
+            ggplot(sq_estimate_pop_area)+geom_point(aes(x=temp,y=gestimated))
+            ggplot(sq_estimate_gdp_area)+geom_point(aes(x=temp,y=gestimated))
+
+            sq_estimate_pop_area$significant <- "Not significant (p > 0.05)"
+            sq_estimate_pop_area$significant[which(sq_estimate_pop_area$p_value<0.05)] <- "Significant (p < 0.05)"
+            sq_estimate_gdp_area$significant <- "Not significant (p > 0.05)"
+            sq_estimate_gdp_area$significant[which(sq_estimate_gdp_area$p_value<0.05)] <- "Significant (p < 0.05)"
+            sq_estimate_sst_area$significant <- "Not significant (p > 0.05)"
+            sq_estimate_sst_area$significant[which(sq_estimate_sst_area$p_value<0.05)] <- "Significant (p < 0.05)"
+            sq_estimate_preci_area$significant <- "Not significant (p > 0.05)"
+            sq_estimate_preci_area$significant[which(sq_estimate_preci_area$p_value<0.05)] <- "Significant (p < 0.05)"
+
+            Models_ssthot_plot_gdp <- ggplot(sq_estimate_gdp_area)+
+                geom_line(aes(x=temp,y=gestimated),color="#25625f") +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),fill="#25625f",alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=4)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1% Increase")+xlab("Log GDP per capita***")
+                    #guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                    #scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                    #scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                    #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+            Models_ssthot_plot_gdp
+
+            histogram_plot_gdp <- ggplot(mcn_2020, aes(x = logGDPpc)) +
+                    geom_histogram(aes(y = ..density..), colour = "black", fill = "#25625f") +
+                    #geom_density(alpha = .2, fill = "#FF6666") +
+                    theme_bw() +
+                    xlab("Log Pop") +
+                    ylab("Density") + theme_void()
+            #library(gridExtra)
+            Models_ssthot_plot_gdp <- ggarrange(Models_ssthot_plot_gdp, histogram_plot_gdp,
+            legend="none", ncol = 1,heights=c(3,1),align="hv", hjust=0)
+            Models_ssthot_plot_gdp
+
+            Models_ssthot_plot_pop <- ggplot(sq_estimate_pop_area)+
+                geom_line(aes(x=temp,y=gestimated),color="#25625f") +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),fill="#25625f",alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=4)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1% Increase")+xlab("Log Population**")
+                    #guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                    #scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                    #scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                    #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+            Models_ssthot_plot_pop
+            
+            library(ggExtra)
+            # Select the population data for 2020
+            mcn_2020 <- mcn %>% filter(year == 2020)
+            mcn_2020$logPop
+            histogram_plot <- ggplot(mcn_2020, aes(x = logPop)) +
+                    geom_histogram(aes(y = ..density..), colour = "black", fill = "#25625f") +
+                    #geom_density(alpha = .2, fill = "#FF6666") +
+                    theme_bw() +
+                    xlab("Log Pop") +
+                    ylab("Density") + theme_void()
+            #library(gridExtra)
+            Models_ssthot_plot_pop <- ggarrange(Models_ssthot_plot_pop, histogram_plot,legend="none",
+             ncol = 1,heights=c(3,1),align="hv", hjust=0)
 
 
-        #model_holes_ssthot <- felm(log(holes)~
-        model_holes_ssthot <- felm(log(holes/mangrove_area)~
-            #sst + I(sst^2)+
-            sst_hottest + I(sst_hottest^2) +
-            #log(mangrove_area)+ 
-            #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
-            I(Mean_Precipitation^2) +
-            Mean_Precipitation +
-            factor(rich)*logGDPpc+ I(log(GDP/Population))
-            |gridcell_id + year+ countrycode+R5|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc)),])
-        summary( model_holes_ssthot)
+            Models_ssthot_plot_area <- ggplot(sq_estimate_sst_area)+
+                geom_line(aes(x=temp,y=gestimated),color="#e9995c") +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),fill="#e9995c",alpha=0.2)+
+                theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1°C Increase")+xlab("Mean SST in the Hottest Month (°C)***")#+
+                #guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                #scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                #scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+            Models_ssthot_plot_area
+
+            histogram_plot_ssthot <- ggplot(mcn_2020, aes(x = sst_hottest)) +
+                    geom_histogram(aes(y = ..density..), colour = "black", fill = "#e9995c") +
+                    #geom_density(alpha = .2, fill = "#FF6666") +
+                    theme_bw() +
+                    xlab("Log Pop") +
+                    ylab("Density") + theme_void()
+            
+            Models_ssthot_plot_area<-ggarrange(Models_ssthot_plot_area, histogram_plot_ssthot,legend="none", 
+            ncol = 1,heights=c(3,1),align="hv", hjust=0)
+
+            Models_ssthot_plot_area
+
+            Models_preci_hot_plot_area <- ggplot(sq_estimate_preci_area)+
+                geom_line(aes(x=temp,y=gestimated),color="#e9995c") +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),fill="#e9995c",alpha=0.2)+
+                theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1 mm Rain Increase")+xlab("Monthly Mean Precipitation (mm)***")
+                #guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                #scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                #scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_preci_hot_plot_area
+
+            histogram_plot_preci <- ggplot(mcn_2020, aes(x = Mean_Precipitation)) +
+                    geom_histogram(aes(y = ..density..), colour = "black", fill = "#e9995c") +
+                    #geom_density(alpha = .2, fill = "#FF6666") +
+                    theme_bw() +
+                    xlab("Log Pop") +
+                    ylab("Density") + theme_void()
+            
+            Models_preci_hot_plot_area<-ggarrange(Models_preci_hot_plot_area, histogram_plot_preci,legend="none", 
+                        ncol = 1,heights=c(3,1),align="hv", hjust=0)
+
+            Models_preci_hot_plot_area
+
+            ggarrange(Models_ssthot_plot_area,Models_preci_hot_plot_area,Models_ssthot_plot_gdp,Models_ssthot_plot_pop,ncol=4)
+
+            df_dummy <- data.frame(value = c(rnorm(100), rnorm(100)), Variable = rep(c("Climatic", "Socioeconomic"), each = 100))
+            dummy_plot <- ggplot(df_dummy, aes(value, fill = Variable)) +
+            geom_histogram(color = "black") +
+            scale_fill_manual(values = c("Climatic" = "#e9995c", "Socioeconomic" = "#25625f")) +
+            theme(legend.position="bottom")  # Remove all non-data ink
+
+            # Extract the legend
+            combined_legend <- get_legend(dummy_plot)
+
+            arr_area_loss_plot <- ggarrange(ggarrange(Models_ssthot_plot_area,
+                                Models_preci_hot_plot_area,
+                                Models_ssthot_plot_gdp,
+                                Models_ssthot_plot_pop,ncol=4),
+                                combined_legend,ncol=1,heights=c(11,1))
+            annotated_figure <- annotate_figure(arr_area_loss_plot, 
+                                    top = text_grob("Area Loss Model", face = "bold", size = 14),
+                                    bottom = text_grob("Sum of coefficients significane\n **: p<0.05; ***: p<0.01", face = "italic", size = 10),
+                                    #left = text_grob("Left annotation", rot = 90, size = 10),
+                                    #right = text_grob("Right annotation", rot = -90, size = 10)
+                                    )
+
+            # Printing the annotated figure
+            print(annotated_figure)
+    
+
+            gdp_coefs_ssthot_area <- plot_coefs(model_area_ssthot, ci_level = 0.90,
+                coefs = c("Log GDPpc"="log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log GDPpc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log country GDPpc"="I(log(GDP/Population))",
+                            "Log Pop" = "log(Population_Count_50km)",
+                            "Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+                            "Log Salinity"="log(Mean_Salinity)"))
+            gdp_coefs_ssthot_area                
+        ##Plots SST Hot
         
-        #sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst","Gaps")
-        sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst_hottest","Gaps")
-        sq_estimate_preci_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"Mean_Precipitation","Gaps")
+        ## Model Gaps (start)
+            model_holes_ssthot <- felm(log(holes)~
+            #model_holes_ssthot <- felm(log(holes/mangrove_area)~
+                log(mangrove_area)+
+                #sst + I(sst^2)+
+                sst_hottest + I(sst_hottest^2) +
+                Mean_Precipitation+I(Mean_Precipitation^2) +
+                log(Mean_Salinity)  + 
+                log(Sum_GDP_50km/Population_Count_50km)+
+                #I(log(Sum_GDP_50km)/log(GDP))+
+                I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+                log(Population_Count_50km)+ 
+                #year:factor(gridcell_id) + I(year^2):factor(gridcell_id) + R5:year + 
+                year:countrycode + R5:year + 
+                income:year #+ 
+                #log(GDP/Population)
+                |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+            data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc)),],
+                weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))])
+            summary( model_holes_ssthot)
 
-        model_np_ssthot <- felm(log(np/mangrove_area)~
-        #model_np_ssthot <- felm(log(np)~    #sst + I(sst^2)+
-            #log(mangrove_area)+
-            sst_hottest + I(sst_hottest^2) + 
-            I(Mean_Precipitation^2) +
-            Mean_Precipitation +
-            factor(rich)*logGDPpc + I(log(GDP/Population)) 
-            |gridcell_id + year+ countrycode|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),])
-        summary(model_np_ssthot)
+            
+                    
+            gdp_coefs_ssthot_gaps <- plot_coefs(model_holes_ssthot, ci_level = 0.90,
+            coefs = c("Log GDP pc"="log(Sum_GDP_50km/Population_Count_50km)","Log GDP pc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+            "Log Pop" = "log(Population_Count_50km)","Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+            #"Ratio GDP local/country"="log(Sum_GDP_50km/Population_Count_50km)",
+            #"Ratio GDPpc local/country"="I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))"
+            "Log Salinity" = "log(Mean_Salinity)"))
+            gdp_coefs_ssthot_gaps
+            #ggsave("Figures/Draft/newmodel/linear_coef_ssthot_gaps.png",dpi=600)
+            
+            #sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst","Gaps")
+            sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst_hottest","Gaps")
+            sq_estimate_preci_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"Mean_Precipitation","Gaps")
+
+            plot_gaps_ssthot <-    ggplot(sq_estimate_sst_holes)+
+                    geom_line(aes(x=temp,y=gestimated)) +
+                    geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1°C increase on \n Gaps (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")
+            plot_gaps_ssthot_preci <-    ggplot(sq_estimate_preci_holes)+
+                    geom_line(aes(x=temp,y=gestimated)) +
+                    geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1mm rain increase on \n Gaps (% Change)")+xlab("Monthly Average Precipitation (mm)")
+            
+            ggarrange(plot_gaps_ssthot,plot_gaps_ssthot_preci,gdp_coefs_ssthot_gaps,ncol=3)
+            ggplot(mcn[which(mcn$year>2006),],aes(x=log(Sum_GDP_50km)/log(GDP),y=log(mangrove_area),color=R5))+geom_point(alpha=0.2)+theme_bw()
+            ggplot(mcn[which(mcn$year>2006),],aes(x=Mean_Salinity,y=sst_hot,color=R5))+geom_point(alpha=0.2)+theme_bw()
+            
+            install.packages("car")
+            library(car)
+            cor((mcn[, which(names(mcn) %in% c("Mean_Salinity", "sst_hottest", "Mean_Precipitation","sst","temp"))]),use="complete.obs")
+
+            preci_ssthot <- felm(Mean_Salinity~
+                sst_hottest + I(sst_hottest^2)
+                |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+            data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc)),])
+            car::vif(preci_ssthot)
+            summary(preci_ssthot)
         
-        sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
-        sq_estimate_preci_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"Mean_Precipitation","Patches")
+        ## Model Gaps (end)
 
-        Models_sst_hot <- rbind(sq_estimate_sst_area,sq_estimate_sst_holes,sq_estimate_sst_np)
-        Models_preci_hot <- rbind(sq_estimate_preci_area,sq_estimate_preci_holes,sq_estimate_preci_np)
-        glimpse(Models_sst_hot)
-        glimpse(Models_preci_hot)
+        ## Model Patches (start)
+            glimpse(mcn)
+            ggplot(mcn[which(mcn$annual_np_change!=0 & mcn$Population_Count_50km>0 &mcn$mangrove_area>0 & mcn$np>0& mcn$ntl>0 & is.finite(mcn$logGDPpc)),])+
+            geom_point(aes(x=log(Population_Count),y=log(np)))
+            #model_np_ssthot <- felm(log(np/mangrove_area)~
+            model_np_ssthot <- felm(log(np)~    #sst + I(sst^2)+
+                log(mangrove_area)+
+                #sst+I(sst^2)+
+                sst_hottest + I(sst_hottest^2) + 
+                I(Mean_Precipitation^2)+#:log(Population_Count_50km) +
+                Mean_Precipitation +
+                log(Mean_Salinity)  + #I(Mean_Salinity^2)+
+                log(Sum_GDP_50km/Population_Count_50km)+ 
+                #I(log(GDP/Population))
+                #factor(rich)*log(Sum_GDP_50km/Population_Count_50km) +# I(log(GDP/Population)) #+ 
+                #log(Population_Count_50km)+ 
+                #log(Population_Count_50km)+
+                #year:countrycode
+                I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+                log(Population_Count_50km)+ 
+                year:countrycode + R5:year + 
+                income:year #+ 
+                #log(GDP/Population)
+                |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+            data=mcn[which(mcn$annual_np_change!=0 & mcn$Population_Count_50km>0 &mcn$mangrove_area>0 & mcn$np>0& mcn$ntl>0 & is.finite(mcn$logGDPpc)),],
+                weights=mcn$mangrove_area[which(mcn$annual_np_change!=0 & mcn$Population_Count_50km>0 & mcn$mangrove_area>0 & mcn$np>0& mcn$ntl>0 & is.finite(mcn$logGDPpc))])
+            summary(model_np_ssthot)
 
-        
-        pal_lapaz <- scico(15, palette = 'batlow')
-        pal_lapaz <- pal_lapaz[c(2,7,12)]
-        Models_sst_hot$significant <- "Not significant (p > 0.05)"
-        Models_sst_hot$significant[which(Models_sst_hot$p_value<0.05)] <- "Significant (p < 0.05)"
+            gdp_coefs_ssthot_np <- plot_coefs(model_np_ssthot, ci_level = 0.90,
+            coefs = c("Log GDP pc"="log(Sum_GDP_50km/Population_Count_50km)","Log GDP pc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+            "Log Pop" = "log(Population_Count_50km)","Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+            #"Ratio GDP local/country"="log(Sum_GDP_50km/Population_Count_50km)",
+            #"Ratio GDPpc local/country"="I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))"
+            "Log Salinity" = "log(Mean_Salinity)"))
+            gdp_coefs_ssthot_np
+            
+            sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
+            sq_estimate_preci_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"Mean_Precipitation","Patches")
 
-        Models_ssthot_plot <- ggplot(Models_sst_hot)+
-        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
-        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw()  + facet_wrap(~exp,ncol=3)+ 
-        geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase on\n mangrove characteristics")+xlab("Monthly Average SST in the Hottest Month (C)")+
-        guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
-        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
-        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
-        #theme(strip.background =element_rect(fill=c(pal_roma[9])))
-        Models_ssthot_plot
+            plot_np_ssthot <-    ggplot(sq_estimate_sst_np)+
+                    geom_line(aes(x=temp,y=gestimated)) +
+                    geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1°C increase on \n Patches (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")
+            plot_np_ssthot_preci <-    ggplot(sq_estimate_preci_np)+
+                    geom_line(aes(x=temp,y=gestimated)) +
+                    geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1mm rain increase on \n Patches (% Change)")+xlab("Monthly Average Precipitation (mm)")
 
-        Models_ssthot_plot_area <- ggplot(Models_sst_hot[which(Models_sst_hot$exp=="Area"),])+
-        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
-        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
-        geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1°C increase on \n Mangrove Area (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")+
-        guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
-        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
-        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
-        #theme(strip.background =element_rect(fill=c(pal_roma[9])))
-        Models_ssthot_plot_area
-
-
-        Models_preci_hot$significant <- "Not significant (p > 0.05)"
-        Models_preci_hot$significant[which(Models_preci_hot$p_value<0.05)] <- "Significant (p < 0.05)"
-
-        Models_preci_hot_plot <- ggplot(Models_preci_hot)+
-        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
-        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw()  + facet_wrap(~exp,ncol=3)+ 
-        geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1mm increase on\n mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
-        guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
-        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
-        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
-        #theme(strip.background =element_rect(fill=c(pal_roma[9])))
-        Models_preci_hot_plot
-
-        Models_preci_hot_plot_area <- ggplot(Models_preci_hot[which(Models_preci_hot$exp=="Area"),])+
-        geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
-        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
-        geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1mm rain increase on \n Mangrove Area (% Change)")+xlab("Mean Monthly Precipitation (mm)")+
-        guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
-        scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
-        scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
-        #theme(strip.background =element_rect(fill=c(pal_roma[9])))
-        Models_preci_hot_plot_area
-
+            ggarrange(plot_np_ssthot,plot_np_ssthot_preci,gdp_coefs_ssthot_np,ncol=3)
+        ## Model Patches (end)
 
         
-        gdp_coefs_ssthot <- plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot, ci_level = 0.90,
-        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
-            model.names=c("Area","Patches","Gaps"))
-        gdp_coefs_ssthot
+        ## Model Fractal (start)
+            glimpse(mcn)
+            model_pafrac_ssthot <- felm(log(pafrac)~
+            #model_np_ssthot <- felm(log(np)~    #sst + I(sst^2)+
+                #log(mangrove_area)+
+                sst_hottest + I(sst_hottest^2) +#:log(Population_Count_50km) +
+                #Mean_Precipitation+ 
+                #I(Mean_Precipitation^2)+
+                log(Mean_Salinity)  + log(Sum_GDP_50km/Population_Count_50km)+ 
+                #I(log(GDP/Population))
+                #factor(rich)*log(Sum_GDP_50km/Population_Count_50km) +# I(log(GDP/Population)) #+ 
+                #log(Population_Count_50km)+ 
+                #log(Population_Count_50km)+
+                #year:countrycode
+                I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+                log(Population_Count_50km)+ 
+                year:countrycode + R5:year + 
+                income:year #+ 
+                |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+            data=mcn[which(mcn$mangrove_area>0 & mcn$pafrac>0 & is.finite(mcn$logGDPpc)),],
+                weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$pafrac>0 & is.finite(mcn$logGDPpc))])
+            summary(model_pafrac_ssthot)
 
-        gdp_coefs_ssthot_area <- plot_coefs(model_area_ssthot, ci_level = 0.90,
-        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"))
-        gdp_coefs_ssthot_area
+            gdp_coefs_ssthot_pafrac <- plot_coefs(model_pafrac_ssthot, ci_level = 0.90,
+            coefs = c("Log GDP pc"="log(Sum_GDP_50km/Population_Count_50km)","Log GDP pc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+            "Log Pop" = "log(Population_Count_50km)","Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+            #"Ratio GDP local/country"="log(Sum_GDP_50km/Population_Count_50km)",
+            #"Ratio GDPpc local/country"="I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))"
+            "Log Salinity" = "log(Mean_Salinity)"))
+            gdp_coefs_ssthot_pafrac
+            
+            sq_estimate_sst_pafrac <- sqest(mcn[which(mcn$mangrove_area>0 & mcn$pafrac>0 & is.finite(mcn$logGDPpc)),],model_pafrac_ssthot,"sst_hottest","Fractal Index")
+            sq_estimate_preci_pafrac <- sqest(mcn[which(mcn$mangrove_area>0 & mcn$pafrac>0 & is.finite(mcn$logGDPpc)),],model_pafrac_ssthot,"Mean_Precipitation","Fractal Index")
+
+            plot_pafrac_ssthot <-    ggplot(sq_estimate_sst_pafrac)+
+                    geom_line(aes(x=temp,y=gestimated)) +
+                    geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1°C increase on \n Fractal Index (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")
+            plot_pafrac_ssthot_preci <-    ggplot(sq_estimate_preci_pafrac)+
+                    geom_line(aes(x=temp,y=gestimated)) +
+                    geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2),alpha=0.2)+
+                    theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    ylab("Effect of 1mm rain increase on \n Fractal Index (% Change)")+xlab("Monthly Average Precipitation (mm)")
+
+            ggarrange(plot_pafrac_ssthot,plot_pafrac_ssthot_preci,gdp_coefs_ssthot_pafrac,ncol=3)
+        ## Model Patches (start)
+
+        
+        ## Plots SST Hot (start)
+            
+            ## Prepare Data (start)
+            
+                Models_sst_hot <- rbind(sq_estimate_sst_area,sq_estimate_sst_holes,sq_estimate_sst_np,sq_estimate_sst_pafrac)
+                Models_preci_hot <- rbind(sq_estimate_preci_area,sq_estimate_preci_holes,sq_estimate_preci_np,sq_estimate_preci_pafrac)
+                
+                pal_lapaz <- scico(15, palette = 'batlow')
+                pal_lapaz <- pal_lapaz[c(2,7,12)]
+                Models_sst_hot$significant <- "Not significant (p > 0.05)"
+                Models_sst_hot$significant[which(Models_sst_hot$p_value<0.05)] <- "Significant (p < 0.05)"
+
+                Models_preci_hot$significant <- "Not significant (p > 0.05)"
+                Models_preci_hot$significant[which(Models_preci_hot$p_value<0.05)] <- "Significant (p < 0.05)"
+
+            ## Prepare Data
+
+            ## Plot Maringal Effects (start)
+                Models_ssthot_plot <- ggplot(Models_sst_hot)+
+                geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+                theme_bw()  + facet_wrap(~exp,ncol=4)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1C increase")+xlab("Monthly Average SST in the Hottest Month (C)")+
+                guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_ssthot_plot
+
+                Models_ssthot_plot_area <- ggplot(Models_sst_hot[which(Models_sst_hot$exp=="Area"),])+
+                geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+                theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1°C increase on \n Area Loss (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")+
+                guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_ssthot_plot_area
+
+
+                Models_ssthot_plot_gaps <- ggplot(Models_sst_hot[which(Models_sst_hot$exp=="Gaps"),])+
+                geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+                theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1°C increase on \n Fragmentation (% Change)")+xlab("Monthly Average SST in the Hottest Month (C)")+
+                guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_ssthot_plot_gaps
+
+
+            
+
+                Models_preci_hot_plot <- ggplot(Models_preci_hot)+
+                geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+                theme_bw()  + facet_wrap(~exp,ncol=4)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1mm increase")+xlab("Mean Monthly Precipitation (mm)")+
+                guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_preci_hot_plot
+
+                Models_preci_hot_plot_area <- ggplot(Models_preci_hot[which(Models_preci_hot$exp=="Area"),])+
+                geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+                theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1mm rain increase on \n Mangrove Area (% Change)")+xlab("Mean Monthly Precipitation (mm)")+
+                guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_preci_hot_plot_area
+
+                Models_preci_hot_plot_gaps <- ggplot(Models_preci_hot[which(Models_preci_hot$exp=="Gaps"),])+
+                geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
+                geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
+                theme_bw()  + #facet_wrap(~exp,ncol=3)+ 
+                geom_hline(aes(yintercept=0),linetype="dashed")+
+                ylab("Effect of 1mm rain increase on \n Fragmentation (% Change)")+xlab("Mean Monthly Precipitation (mm)")+
+                guides(fill = guide_legend(title = "Sum of Coefficients"),color = guide_legend(title = "Sum of Coefficients"))+
+                scale_color_manual(values =c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
+                scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred"))#+
+                #theme(strip.background =element_rect(fill=c(pal_roma[9])))
+                Models_preci_hot_plot_gaps
+            ## Plot Maringal Effects (end)
+
+
+            ## Plot Linear Effects (start)
+
+
+                plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot,model_pafrac_ssthot)
+                
+                summary(model_area_ssthot)
+                gdp_coefs_ssthot <- plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot,model_pafrac_ssthot, ci_level = 0.90,
+                coefs = c("Log lGDPpc"="log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log GDPpc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log country GDPpc"="I(log(GDP/Population))",
+                            "Log Pop" = "log(Population_Count_50km)",
+                            "Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+                            "Log Salinity"="log(Mean_Salinity)"),
+                    model.names=c("Area Loss","Patches","Gaps","Fractal Index"))
+                gdp_coefs_ssthot
+
+                ssthot_all_models <- ggarrange(ggarrange(Models_ssthot_plot,
+                    Models_preci_hot_plot,common.legend=TRUE,legend="bottom",ncol=1,nrow=2),
+                    gdp_coefs_ssthot,legend="bottom",ncol=2,widths=c(3,2))
+                ssthot_all_models
+                #ggsave("Figures/Draft/newmodel/linear_coef_ssthot_area.png",dpi=600)
+        ## Plots SST Hot (start)
     
     #Models SST Hottest (end)
 
     #Models SSTs (start)
-        model_area_ssthot <- felm(log(mangrove_area)~
+        model_area_sst <- felm(I(-log(mangrove_area))~
             sst + I(sst^2) + 
             #rich*sst + rich*I(sst^2) + 
             #rich:sst_hottest + rich:I(sst_hottest^2) + 
@@ -315,16 +700,23 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
             #sst_hottest + I(sst_hottest^2) + 
             #sst:hot_location_alldata + I(sst^2):hot_location_alldata + 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
+            log(Mean_Salinity)+
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+I(log(GDP/Population))
+            #factor(rich)*logGDPpc+
+            #I(log(GDP/Population))+ factor(rich)*log(Population_Count_50km)
+            #year:countrycode
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Population_Count_50km)+ 
+            year:countrycode + R5:year + 
+            income:year #+ 
             |gridcell_id + year+ countrycode+R5|0|gridcell_id,
         data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),])
-        summary(model_area_ssthot)
+        summary(model_area_sst)
 
 
-        sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst","Area")
-        sq_estimate_preci_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"Mean_Precipitation","Area")
+        sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_sst,"sst","Area Loss")
+        sq_estimate_preci_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_sst,"Mean_Precipitation","Area Loss")
         #sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst_hottest","Area")
 
 
@@ -334,56 +726,112 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         
         
         #model_holes_ssthot <- felm(log(holes)~
-        model_holes_ssthot <- felm(log(holes/mangrove_area)~
+        model_holes_sst <- felm(log(holes/mangrove_area)~
             sst + I(sst^2)+
             #log(mangrove_area)+ 
             #sst_hottest + I(sst_hottest^2) + 
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
             #temp + I(temp^2)+
+            log(Mean_Salinity)+
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+ I(log(GDP/Population))
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Sum_GDP_50km/Population_Count_50km)+
+            log(Population_Count_50km)+
+            year:countrycode + R5:year + 
+            income:year #+
             |gridcell_id + year+ countrycode+R5|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc) ),])
-        summary( model_holes_ssthot)
+        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc) ),],
+            weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))])
+        summary( model_holes_sst)
         
-        sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst","Gaps")
-        sq_estimate_preci_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"Mean_Precipitation","Gaps")
+        sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_sst,"sst","Gaps")
+        sq_estimate_preci_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_sst,"Mean_Precipitation","Gaps")
         #sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst_hottest","Gaps")
 
-        model_np_ssthot <- felm(log(np/mangrove_area)~
+        
+        ggplot(mcn)+geom_point(aes(x=log(np/mangrove_area),y=(Mean_Salinity)))
+        
+        model_np_sst <- felm(log(np/mangrove_area)~
         #model_np_ssthot <- felm(log(np)~
             #log(mangrove_area)+
             sst + I(sst^2)+
             #sst_hottest + I(sst_hottest^2) + 
+            log(Mean_Salinity)+
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+ I(log(GDP/Population))
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Population_Count_50km)+
+            log(Sum_GDP_50km/Population_Count_50km)+
+            year:countrycode + R5:year + 
+            income:year #+
             |gridcell_id + year+ countrycode|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),])
-        summary(model_np_ssthot)
+            data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),],
+            weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))])
         
+        summary(model_np_sst)
         #sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
-        sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst","Patches")
-        sq_estimate_preci_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"Mean_Precipitation","Patches")
+        sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_sst,"sst","Patches")
+        sq_estimate_preci_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_sst,"Mean_Precipitation","Patches")
 
-        Models_sst <- rbind(sq_estimate_sst_area,sq_estimate_sst_holes,sq_estimate_sst_np)
-        Models_preci_sst <- rbind(sq_estimate_preci_area,sq_estimate_preci_holes,sq_estimate_preci_np)
+
+        model_pafrac_sst <- felm(log(pafrac)~
+        #model_np_ssthot <- felm(log(np)~
+            log(mangrove_area)+
+            sst + I(sst^2)+
+            #sst_hottest + I(sst_hottest^2) + 
+            log(Mean_Salinity)+
+            I(Mean_Precipitation^2) +
+            Mean_Precipitation +
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Sum_GDP_50km/Population_Count_50km)+
+            log(Population_Count_50km)+
+            year:countrycode + R5:year + 
+            income:year #+
+            |gridcell_id + year+ countrycode|0|gridcell_id,
+            data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),],
+            weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))])
+        
+        summary(model_pafrac_sst)
+        #sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
+        sq_estimate_sst_pafrac <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_pafrac_sst,"sst","Fractal")
+        sq_estimate_preci_pafrac <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_pafrac_sst,"Mean_Precipitation","Fractal")
+        
+
+        Models_sst <- rbind(sq_estimate_sst_area,sq_estimate_sst_holes,sq_estimate_sst_np,sq_estimate_sst_pafrac)
+        Models_preci_sst <- rbind(sq_estimate_preci_area,sq_estimate_preci_holes,sq_estimate_preci_np,sq_estimate_preci_pafrac)
         glimpse(Models_sst)
 
+        Models_sst_plot <- ggplot(Models_sst)+
+        geom_line(aes(x=temp,y=gestimated,color=exp)) +
+        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=exp),alpha=0.2)+
+        theme_bw()  + facet_wrap(~exp,ncol=4)+ 
+        geom_hline(aes(yintercept=0),linetype="dashed")+
+        ylab("Effect of 1C increase")+xlab("Annual Mean SST (C)")+
+        guides(fill = guide_legend(title = "Dimension"),color = guide_legend(title = "Dimension"))
+        Models_sst_plot
+        
         Models_preci_sst_plot <- ggplot(Models_preci_sst)+
         geom_line(aes(x=temp,y=gestimated,color=exp)) +
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=exp),alpha=0.2)+
-        theme_bw()  + facet_wrap(~exp,ncol=3)+ 
+        theme_bw()  + facet_wrap(~exp,ncol=4)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase \non mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
+        ylab("Effect of 1mm increase")+xlab("Mean Monthly Precipitation (mm)")+
         guides(fill = guide_legend(title = "Dimension"),color = guide_legend(title = "Dimension"))
         Models_preci_sst_plot
 
-        gdp_coefs_sst <- plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot, ci_level = 0.90,
-        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
-            model.names=c("Area","Patches","Gaps"))
+        
 
+        gdp_coefs_sst <- plot_coefs(model_area_sst,model_np_sst,model_holes_sst,model_pafrac_sst, ci_level = 0.90,
+                coefs = c("Log GDPpc"="log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log GDPpc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log country GDPpc"="I(log(GDP/Population))",
+                            "Log Pop" = "log(Population_Count_50km)",
+                            "Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+                            "Log Salinity"="log(Mean_Salinity)"),
+                    model.names=c("Area Loss","Patches","Gaps","Fractal Index"))
+                gdp_coefs_sst
+        
     #Models SSTs (start)    
 
     #Plot Dimensions (SST and SST Hottest)
@@ -395,9 +843,9 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         Models_preci_sst_plot <- ggplot(Models_preci_sst)+
         geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw() + facet_wrap(~exp,ncol=3)+ 
+        theme_bw() + facet_wrap(~exp,ncol=4)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1mm increase on \nmangrove characteristics")+xlab("Mean Monthly Precipitation (mm)") +
+        ylab("Effect of 1mm increase")+xlab("Mean Monthly Precipitation (mm)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
         scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
@@ -412,9 +860,9 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         Models_sst_plot <- ggplot(Models_sst)+
         geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw() + facet_wrap(~exp,ncol=3)+ 
+        theme_bw() + facet_wrap(~exp,ncol=4)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase on \nmangrove characteristics")+xlab("Mean Annual SST (C)") +
+        ylab("Effect of 1C increase")+xlab("Mean Annual SST (C)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
         scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
@@ -428,10 +876,14 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         #ggsave("Figures/Draft/sst_and_sstHOT.png",dpi=600)
 
         ggarrange(Models_preci_sst_plot,Models_preci_hot_plot,common.legend=T,nrow=2,legend="bottom")
+
+        sst_all_models <- ggarrange(ggarrange(Models_sst_plot,Models_preci_sst_plot,common.legend=T,nrow=2,legend="none",ncol=1),
+        gdp_coefs_sst,legend="none",widths=c(3,2))
+        sst_all_models
     #Plot Dimensions (SST and SST Hottest)
 
     #Models Temp (start)
-        model_area_t <- felm(log(mangrove_area)~
+        model_area_t <- felm(I(-log(mangrove_area))~
             #sst + I(sst^2) + 
             temp + I(temp^2)+
             #rich*sst + rich*I(sst^2) + 
@@ -442,14 +894,19 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
             #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+I(log(GDP/Population))
+            log(Mean_Salinity)+
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Sum_GDP_50km/Population_Count_50km)+
+            log(Population_Count_50km)+
+            year:countrycode + R5:year + 
+            income:year #+
             |gridcell_id + year+ countrycode+R5|0|gridcell_id,
         data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),])
         summary(model_area_t)
 
 
-        sq_estimate_t_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_t,"temp","Area")
-        sq_estimate_preci_area_t <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_t,"Mean_Precipitation","Area")
+        sq_estimate_t_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_t,"temp","Area Loss")
+        sq_estimate_preci_area_t <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_t,"Mean_Precipitation","Area Loss")
         #sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst_hottest","Area")
 
 
@@ -464,9 +921,14 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
             I(Mean_Precipitation^2) +
             #log(mangrove_area)+ 
             Mean_Precipitation +
-            factor(rich)*logGDPpc+ I(log(GDP/Population))
+            log(Mean_Salinity)+
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            rich*log(Sum_GDP_50km/Population_Count_50km)+
+            log(Population_Count_50km)+
+            year:countrycode
             |gridcell_id + year+ countrycode+R5|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc) ),])
+        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc) ),],
+        weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc))])
         summary( model_holes_t)
         
         sq_estimate_t_holes <- sqest(mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_t,"temp","Gaps")
@@ -476,54 +938,93 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         ggplot(mcn,aes(x=year,y=(np/mangrove_area)))+geom_point()+geom_smooth()+ylim(c(0,10000))
 
             #model_np_t <- felm(log(np)~
-            model_np_t <- felm(log(np/mangrove_area)~
-            #model_np_t <- felm(log(np/mangrove_area)~
+        mcn$hot_bin <- mcn$b30_31C+mcn$b31_32C+mcn$b32_33C+mcn$b33_34C
+        model_np_t <- felm(log(np/mangrove_area)~
+            #model_np_t <- felm(log(np)~
             temp+I(temp^2)+
+            #hot_bin+
             #log(mangrove_area)+ 
+            #mhw_int:mhw_freq+
             #sst + I(sst^2)+
             #sst_hottest + I(sst_hottest^2) + 
             I(Mean_Precipitation^2) +
             Mean_Precipitation +
-            factor(rich)*logGDPpc+ I(log(GDP/Population))
+            Mean_Salinity+
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            rich*log(Sum_GDP_50km/Population_Count_50km)+
+            rich*log(Population_Count_50km)+
+            year:countrycode + R5:year + 
+            income:year #+
             |gridcell_id + year+ countrycode|0|gridcell_id,
-        data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),])
+        data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),],
+        weights=log(mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))]+1))
         summary(model_np_t)
         
         #sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
         sq_estimate_t_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_t,"temp","Patches")
         sq_estimate_preci_np_t <- sqest(mcn[which(mcn$mangrove_area>0 &mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_np_t,"Mean_Precipitation","Patches")
 
-        gdp_coefs_t <- plot_coefs(model_area_t,model_np_t,model_holes_t, ci_level = 0.90,
-        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
-            model.names=c("Area","Patches","Gaps"))
 
-        gdp_coefs_t_gaps <- plot_coefs(model_holes_t, ci_level = 0.90,
-        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"))
+        model_pafrac_t <- felm(log(pafrac)~
+            #model_np_t <- felm(log(np)~
+            temp+I(temp^2)+
+            #hot_bin+
+            #log(mangrove_area)+ 
+            #mhw_int:mhw_freq+
+            #sst + I(sst^2)+
+            #sst_hottest + I(sst_hottest^2) + 
+            I(Mean_Precipitation^2) +
+            Mean_Precipitation +
+            Mean_Salinity+
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            rich*log(Sum_GDP_50km/Population_Count_50km)+
+            log(Population_Count_50km)+
+            year:countrycode + R5:year + 
+            income:year #+
+            |gridcell_id + year+ countrycode|0|gridcell_id,
+        data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),],
+        weights=log(mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))]+1))
+        summary(model_pafrac_t)
         
-        Models_t <- rbind(sq_estimate_t_area,sq_estimate_t_holes,sq_estimate_t_np)
-        Models_preci_t <- rbind(sq_estimate_preci_area_t,sq_estimate_preci_holes_t,sq_estimate_preci_np_t)
+        #sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
+        sq_estimate_t_pafrac <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_pafrac_t,"temp","Fractal Index")
+        sq_estimate_preci_pafrac_t <- sqest(mcn[which(mcn$mangrove_area>0 &mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_pafrac_t,"Mean_Precipitation","Fractal Index")
+
+        gdp_coefs_t <- plot_coefs(model_area_t,model_np_t,model_holes_t,model_pafrac_t, ci_level = 0.90,
+                coefs = c("Log GDPpc"="log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log GDPpc (rich)"="factor(rich)1:log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log country GDPpc"="I(log(GDP/Population))",
+                            "Log Pop" = "log(Population_Count_50km)",
+                            "Log Pop (rich)" = "factor(rich)1:log(Population_Count_50km)",
+                            "Log Pop (rich)"="rich:log(Sum_GDP_50km/Population_Count_50km)",
+                            "Log Salinity"="log(Mean_Salinity)"),
+                    model.names=c("Area","Patches","Gaps","Fractal Index"))
+                gdp_coefs_t
+        
+
+       
+        Models_t <- rbind(sq_estimate_t_area,sq_estimate_t_holes,sq_estimate_t_np,sq_estimate_t_pafrac)
+        Models_preci_t <- rbind(sq_estimate_preci_area_t,sq_estimate_preci_holes_t,sq_estimate_preci_np_t,sq_estimate_preci_pafrac_t)
         #glimpse(Models_sst)
 
         Models_t_plot <- ggplot(Models_t)+
         geom_line(aes(x=temp,y=gestimated,color=exp)) +
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=exp),alpha=0.2)+
-        theme_bw()  + facet_wrap(~exp,ncol=3)+ 
+        theme_bw()  + facet_wrap(~exp,ncol=4)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1mm increase \non mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
+        ylab("Effect of 1mm increase")+xlab("Mean Monthly Precipitation (mm)")+
         guides(fill = guide_legend(title = "Dimension"),color = guide_legend(title = "Dimension"))
         Models_t_plot
-
-    #Models Temp (start)    
-
+        
         Models_preci_t$significant <- "Not significant (p > 0.05)"
         Models_preci_t$significant[which(Models_preci_t$p_value<0.05)] <- "Significant (p < 0.05)"
 
         Models_preci_t_plot <- ggplot(Models_preci_t)+
         geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw() + facet_wrap(~exp,ncol=3)+ 
+        theme_bw() + facet_wrap(~exp,ncol=4)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1mm precipitation increase on \nmangrove characteristics")+xlab("Monthly Mean Precipitation (mm)") +
+        ylab("Effect of 1mm increase")+xlab("Monthly Mean Precipitation (mm)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
         scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
@@ -547,9 +1048,9 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         Models_t_plot <- ggplot(Models_t)+
         geom_line(aes(x=temp,y=gestimated,color=factor(significant))) +
         geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=factor(significant)),alpha=0.2)+
-        theme_bw() + facet_wrap(~exp,ncol=3)+ 
+        theme_bw() + facet_wrap(~exp,ncol=4)+ 
         geom_hline(aes(yintercept=0),linetype="dashed")+
-        ylab("Effect of 1C increase on \nmangrove characteristics")+xlab("Mean Annual Air Temperature (C)") +
+        ylab("Effect of 1C increase")+xlab("Mean Annual Air Temperature (C)") +
         guides(fill = guide_legend(title = "Sum of coefficients"),color = guide_legend(title = "Sum of coefficients")) +
         guides(fill = guide_legend(title = "Sum of coefficients"), color = guide_legend(title = "Sum of coefficients")) +
         scale_color_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) +
@@ -574,8 +1075,116 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
         scale_fill_manual(values = c("Not significant (p > 0.05)"=pal_lapaz[1],"Significant (p < 0.05)"="indianred")) 
         Models_t_plot_gaps
 
-        library("ggpubr")
-        ggarrange(Models_sst_plot,Models_ssthot_plot,Models_t_plot,common.legend=T,nrow=3,legend="bottom")
+        t_all_models <- ggarrange(ggarrange(Models_t_plot,Models_preci_t_plot,common.legend=T,nrow=2,legend="none",ncol=1),
+        gdp_coefs_t,legend="none",widths=c(3,2))
+        t_all_models
+
+        all_mods <- ggarrange(t_all_models,sst_all_models,ssthot_all_models,legend="bottom",ncol=1)
+        all_mods
+    #Models Temp (start)
+
+
+    #Models Combined (start)
+        model_area_sst <- felm(log(mangrove_area)~
+            #sst + I(sst^2) + 
+            #rich*sst + rich*I(sst^2) + 
+            #rich:sst_hottest + rich:I(sst_hottest^2) + 
+            #sst:sst_hottest + sst:I(sst_hottest^2) + 
+            sst_hottest + I(sst_hottest^2) + 
+            #sst:hot_location_alldata + I(sst^2):hot_location_alldata + 
+            #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
+            #log(Mean_Salinity)+
+            I(Mean_Precipitation^2) +
+            Mean_Precipitation +
+            #factor(rich)*logGDPpc+
+            I(log(GDP/Population))+ #factor(rich)*log(Population_Count_50km)
+            #year:countrycode
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Population_Count_50km)+ 
+            year:countrycode + R5:year + 
+            income:year #+ 
+            |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+        data=mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),])
+        summary(model_area_sst)
+
+
+        sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_sst,"sst","Area")
+        sq_estimate_preci_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_sst,"Mean_Precipitation","Area")
+        #sq_estimate_sst_area <- sqest(mcn[which(mcn$mangrove_area>0 & is.finite(mcn$logGDPpc)),],model_area_ssthot,"sst_hottest","Area")
+
+
+        ggplot(mcn,aes(x=log(holes/mangrove_area),y=sst))+geom_point()
+        ggplot(mcn,aes(x=log(holes/mangrove_area),y=log(GDP/Population)))+geom_point()
+        glimpse(mcn)
+        
+        
+        #model_holes_ssthot <- felm(log(holes)~
+        model_holes_sst <- felm(log(holes/mangrove_area)~
+            sst + I(sst^2)+
+            #log(mangrove_area)+ 
+            #sst_hottest + I(sst_hottest^2) + 
+            #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
+            #temp + I(temp^2)+
+            log(Mean_Salinity)+
+            I(Mean_Precipitation^2) +
+            Mean_Precipitation +
+            I(log(Sum_GDP_50km/Population_Count_50km)/log(GDP/Population))+
+            log(Population_Count_50km)+ 
+            year:countrycode + R5:year + 
+            income:year #+
+            |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc) ),],
+            weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))])
+        summary( model_holes_sst)
+        
+        sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_sst,"sst","Gaps")
+        sq_estimate_preci_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_sst,"Mean_Precipitation","Gaps")
+        #sq_estimate_sst_holes <- sqest(mcn[which(mcn$holes>0 & is.finite(mcn$logGDPpc)),],model_holes_ssthot,"sst_hottest","Gaps")
+
+        
+        ggplot(mcn)+geom_point(aes(x=log(np/mangrove_area),y=(Mean_Salinity)))
+        
+        model_np_sst <- felm(log(np/mangrove_area)~
+        #model_np_ssthot <- felm(log(np)~
+            #log(mangrove_area)+
+            sst + I(sst^2)+
+            #sst_hottest + I(sst_hottest^2) + 
+            log(Mean_Salinity)+
+            I(Mean_Precipitation^2) +
+            Mean_Precipitation +
+            factor(rich)*logGDPpc+ 
+            factor(rich)*log(Population_Count_50km)+
+            year:countrycode
+            |gridcell_id + year+ countrycode|0|gridcell_id,
+            data=mcn[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc)),],
+            weights=mcn$mangrove_area[which(mcn$mangrove_area>0 & mcn$np>0 & is.finite(mcn$logGDPpc))])
+        
+        summary(model_np_sst)
+        
+        #sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_ssthot,"sst_hottest","Patches")
+        sq_estimate_sst_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_sst,"sst","Patches")
+        sq_estimate_preci_np <- sqest(mcn[which(mcn$np>0 & is.finite(mcn$logGDPpc)),],model_np_sst,"Mean_Precipitation","Patches")
+
+        Models_sst <- rbind(sq_estimate_sst_area,sq_estimate_sst_holes,sq_estimate_sst_np)
+        Models_preci_sst <- rbind(sq_estimate_preci_area,sq_estimate_preci_holes,sq_estimate_preci_np)
+        glimpse(Models_sst)
+
+        Models_preci_sst_plot <- ggplot(Models_preci_sst)+
+        geom_line(aes(x=temp,y=gestimated,color=exp)) +
+        geom_ribbon(aes(x=temp,ymin=ci1,ymax=ci2,fill=exp),alpha=0.2)+
+        theme_bw()  + facet_wrap(~exp,ncol=3)+ 
+        geom_hline(aes(yintercept=0),linetype="dashed")+
+        ylab("Effect of 1C increase \non mangrove characteristics")+xlab("Mean Monthly Precipitation (mm)")+
+        guides(fill = guide_legend(title = "Dimension"),color = guide_legend(title = "Dimension"))
+        Models_preci_sst_plot
+
+        gdp_coefs_sst <- plot_coefs(model_area_ssthot,model_np_ssthot,model_holes_ssthot, ci_level = 0.90,
+        coefs = c("Log local GDPpc"="logGDPpc","Log local GDPpc (rich)"="factor(rich)1:logGDPpc","Log country GDPpc"="I(log(GDP/Population))"),
+            model.names=c("Area","Patches","Gaps"))
+
+    #Models SSTs (start)     
+
+        
         #ggsave("Figures/Draft/sst_and_sstHOT.png",dpi=600)
 
         
@@ -601,8 +1210,8 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
                 gdp_coefs_ssthot_area+xlab("Estimated Effect on Area \n(% Change)"),ncol=2,widths=c(4,2))
         #ggsave("Figures/Draft/Model_pref_area.png")
 
-        gaps_pref <- ggarrange(ggarrange(Models_t_plot_gaps,Models_preci_t_plot_gaps,legend="none"),
-                gdp_coefs_t_gaps+xlab("Estimated Effect on Fragmentation \n(% Change)"),ncol=2,widths=c(4,2))
+        gaps_pref <- ggarrange(ggarrange(Models_ssthot_plot_gaps,Models_preci_hot_plot_gaps,legend="none"),
+                gdp_coefs_ssthot_gaps+xlab("Estimated Effect on Fragmentation \n(% Change)"),ncol=2,widths=c(4,2))
 
         blank_plot <- ggplot() + theme_void()
 
@@ -621,7 +1230,118 @@ mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\D
                 gdp_coefs_ssthot_area+xlab("Estimated effect on mangrove area \n (percent change)"),ncol=2,widths=c(4,2),
                 ggarrange(ggarrange(Models_t_plot_gaps,Models_preci_t_plot_gaps,common.legend=T,legend="none"),
                 gdp_coefs_t_gaps+xlab("Estimated effect on mangrove area \n (percent change)"),ncol=2,widths=c(4,2)),ncol=1,nrow=2)
+
+    ## Save coefficients
+        model <- model_area_ssthot
         
+        for (i in 1:dim(summary(model)$coef)){
+            var <- rownames(summary(model)$coef)[i]
+            coef <- summary(model)$coef[i,1]
+            se <- summary(model)$coef[i,2]
+            if(i==1){
+                all_
+            }
+        }
+        model_holes_t
+
+## Models Salt
+    #model_holes_ssthot <- felm(log(holes)~
+        variables_of_interest <- c("Mean_Salinity","sst","sst_hottest","temp","logGDPpc","rich","year","gridcell_id","Mean_Precipitation","Population_Count_50km") 
+        
+        sub_mcn <- mcn[,which(names(mcn) %in% variables_of_interest)]
+        sub_mcn <- sub_mcn[complete.cases(sub_mcn), ] 
+        glimpse(sub_mcn)
+        sub_mcn$p2 <- sub_mcn$Mean_Precipitation^2
+        sub_mcn$temp2 <- sub_mcn$temp^2
+        
+        grid_means <- aggregate(. ~ gridcell_id, data=sub_mcn, FUN=mean)
+
+        # subtract grid cell-level means from each observation
+        for (var in names(sub_mcn)[-which(names(sub_mcn)=="gridcell_id" | names(sub_mcn)=="year")]) {
+        sub_mcn[[paste0(var, "_demean")]] <- sub_mcn[[var]] - grid_means[[var]][match(sub_mcn$gridcell_id, grid_means$gridcell_id)]
+        }
+
+        glimpse(sub_mcn)
+
+        cor(sub_mcn)
+
+        
+        ggplot(sub_mcn[which(abs(sub_mcn$Mean_Salinity_demean)<0.5),])+
+        geom_point(aes(y=temp_demean,col=Mean_Salinity_demean,x=Mean_Precipitation_demean),alpha=0.2)+
+        scale_colour_scico(palette="oleron")+theme_bw()
+
+        ggplot(sub_mcn[which(abs(sub_mcn$Mean_Salinity_demean)<0.5),])+
+        geom_point(aes(y=temp2_demean,col=Mean_Salinity_demean,x=p2_demean),alpha=0.2)+
+        scale_colour_scico(palette="oleron")+theme_bw()
+
+        year_means <- aggregate(. ~ year, data=sub_mcn, FUN=mean,na.rm=TRUE)
+        for (var in names(sub_mcn)[-which( names(sub_mcn)=="year")]) {
+        sub_mcn[[paste0(var, "_demean")]] <- sub_mcn[[var]] - year_means[[var]][match(sub_mcn$year, year_means$year)]
+        }
+
+        glimpse(sub_mcn)
+        
+        
+
+        ggplot(sub_mcn)+geom_point(aes(y=temp_demean_demean,col=Mean_Salinity_demean_demean,x=Mean_Precipitation_demean_demean),alpha=0.5)
+        
+        ggplot(mcn)+geom_point(aes(y=Mean_Salinity,x=temp))
+        ggplot(mcn)+geom_point(aes(y=log(Sum_GDP_50km/Population_Count_50km),x=logGDPpc))
+        ggplot(mcn)+geom_point(aes(y=Mean_Salinity,x=Mean_Precipitation))
+        
+        ggplot(mcn[which(mcn$Mean_Salinity>0 ),])+
+            geom_point(aes(col=Mean_Precipitation*temp^2,x=Mean_Precipitation,y=Mean_Salinity))+
+            scale_colour_scico()+theme_bw()+geom_smooth(aes(x=Mean_Precipitation,y=Mean_Salinity))
+        
+        ggplot(mcn)+geom_point(aes(y=Mean_Salinity,x=Mean_Precipitation*temp,col=spei),alpha=0.3)
+        
+        ggplot(mcn[which(mcn$Mean_Salinity>0 & mcn$year==2020 & !is.na(mcn$rich)),])+geom_point(aes(y=Mean_Salinity,x=logGDPpc))+
+        geom_smooth(aes(y=Mean_Salinity,x=logGDPpc))+
+        theme_bw()
+
+        sal_mod <- felm(Mean_Salinity~
+            #sst + I(sst^2) + 
+            year:factor(countrycode)+I(Mean_Precipitation^2)+I(temp)+Mean_Precipitation*I(temp^2)+#year + I(year^2)+
+            temp+ log(logGDPpc) + I(logGDPpc^2)+Latitude+I(Latitude^2)|gridcell_id|0|0,
+        data=mcn[which(is.finite(mcn$logGDPpc)),])
+        summary(sal_mod)
+
+        sal_mod <- felm(log(Mean_Salinity)~
+            #sst + I(sst^2) + 
+            #year:factor(countrycode)+
+            temp*Mean_Precipitation+#I(temp^2)+#year + I(year^2)+
+            +I(temp^2)+#I(Mean_Precipitation^2)+#temp+ 
+            log(logGDPpc)*factor(rich)|gridcell_id|0|0,
+        data=mcn[which(is.finite(mcn$logGDPpc)),])
+        summary(sal_mod)
+
+        sal_mod <- felm(log(Mean_Salinity)~
+            #sst + I(sst^2) + 
+            year:factor(countrycode)+I(temp^2)+Mean_Precipitation+#I(temp^2)+#year + I(year^2)+
+            #temp+ 
+            log(logGDPpc) + I(logGDPpc^2)+Latitude+I(Latitude^2)|gridcell_id|0|0,
+        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc)),])
+        summary(sal_mod)
+
+        
+        sal_mod <- felm(Mean_Salinity~
+            sst + I(sst^2)+
+            #sst_hottest + I(sst_hottest^2) +
+            #log(mangrove_area)+ 
+            #sst:sst_hottest_mean0020 + I(sst^2):sst_hottest_mean0020 + 
+            I(temp^2)*Mean_Precipitation+I(Mean_Precipitation^2) +
+             
+            #log(Mean_Salinity)  + #I(Mean_Salinity^2)+
+            #factor(rich)*logGDPpc+ I(log(GDP/Population))
+            factor(rich)*log(Sum_GDP_50km/Population_Count_50km) +# I(log(GDP/Population)) #+ 
+            #factor(rich)*log(Population_Count_50km)+ 
+            year:countrycode
+            |gridcell_id + year+ countrycode+R5|0|gridcell_id,
+        data=mcn[which(mcn$mangrove_area>0 & mcn$holes>0 & is.finite(mcn$logGDPpc)),])
+
+        library(modelsummary)
+
+##Models Salt
 # Dynamic Model Bins (start)
         
                 
