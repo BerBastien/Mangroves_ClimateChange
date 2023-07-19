@@ -53,7 +53,7 @@ for (j in 104:181){ #25 years
     br <- raster::rotate(brick(nc_file, varname="count",level=j))
     grid_bin <- data.frame(id=gridcell_data$id,year= floor(nc_data$dim$time$vals[j]),rbind(1:46)*0)
     
-    for (i in 1:46){ #46 bins
+    for (i in 1:45){ #46 bins
     #plot(subset(br,i))
     extracted_bin <- raster::extract(raster::subset(br,i), gridcell_data)
     extracted_bin <- unlist(extracted_bin)
@@ -84,4 +84,4 @@ for (j in 104:181){ #25 years
             print(n)
         }
 
-    write.csv(all_data,"sst_bins_projection85.csv")
+    write.csv(all_data,"sst_bins_projection85_2.csv")

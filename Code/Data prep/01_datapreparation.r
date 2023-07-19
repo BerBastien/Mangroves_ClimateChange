@@ -5,26 +5,8 @@
 library(sf)      # For working with spatial data in .gpkg format
 library(ncdf4)   # For reading netCDF files
 library(tidyverse)
-## Function
-        sqest <- function(data, model, namevar, exp) {
-            dataset <- data
-            Sigma <- vcov(model)
-            coefT <- namevar
-            start1 <- which(names(coef(model))==coefT)
-            end1 <- which(names(coef(model))==paste("I(",coefT,"^2)",sep=""))
-            
-            sigma = Sigma[c(1:end1),c(1:end1)]
-            beta.hat <- coef(model)[c(1:end1)]
-            x <- seq(from=min(dataset[,which(names(dataset)==namevar)],na.rm=TRUE),to=max(dataset[,which(names(dataset)==namevar)],na.rm=TRUE), length=100)
-            xmat <- cbind(x, x^2)
-            gestimated <- colSums(beta.hat*t(xmat)) 
-            ci12 <- gestimated + 1.96*sqrt(diag((xmat %*% sigma) %*% t(xmat)))
-            ci22 <- gestimated -  1.96*sqrt(diag((xmat %*% sigma) %*% t(xmat)))
-
-
-            return(data.frame(gestimated=gestimated,ci1=ci12,ci2=ci22,exp=exp,temp=x))
-        }
-    ## Function
+#install.packages("WDI")
+library(WDI)
 
 # Set the path to your data files
     gpkg_file <- "C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\grid_nighlights_spatial.gpkg"
@@ -243,85 +225,89 @@ library(tidyverse)
     mcn2$temp <- mcn2$mean_temp + mcn2$temp_anom
 
     ## World Bank
-        colnames(wealth) <- c("Country.Name" ,"Country.Code",   "Series.Name" , "Series.Code",
-        1995:2018)
+        df <- WDI(country = "all", indicator = c("NY.GDP.MKTP.PP.KD", "SP.POP.TOTL","NY.GDP.PCAP.PP.KD"), start = 1990, end = 2022) #2017 PPP constant 2017
+        glimpse(df)
+        names(df)[c(3,5,6,7)] <- c("countrycode","GDP_country","Population_country","GDPpc_country")
 
-        years <- c(1995:2018)
-        for (i in 1:length(years)){
-            yeari <- years[i]
-            w2 <- wealth[,which(colnames(wealth) %in% 
-                c("Country.Name","Country.Code","Series.Name",yeari))]
-            w3 <- reshape(w2, idvar=c("Country.Name" ,"Country.Code"), 
-                timevar="Series.Name", direction="wide")
-            w3 <- w3[,c(1,2,3,4,34,37,38,39,41,47,49,51,53)]
-            w3[,(dim(w3)[2]+1)] <- yeari
-            colnames(w3) <- c("countryname","countrycode", "N","H","Nagg","Nfisheries","NforestES","NforestT","Nmangroves","Npa","Foreign", "K","TotalWealth","year")
-            if (i==1){Wealth <- w3} else {
-                Wealth <- rbind(Wealth,w3)
-            }
-        }
+        # colnames(wealth) <- c("Country.Name" ,"Country.Code",   "Series.Name" , "Series.Code",
+        # 1995:2018)
 
-        colnames(gdp) <- c("countryname", "countrycode", "seriesname","seriescode",1995:2018)
-        for (i in 1:length(years)){
-            yeari <- years[i]
-            gdp2 <- gdp[,which(colnames(gdp) %in% 
-                c("countryname","countrycode","seriesname",yeari))]
+        # years <- c(1995:2018)
+        # for (i in 1:length(years)){
+        #     yeari <- years[i]
+        #     w2 <- wealth[,which(colnames(wealth) %in% 
+        #         c("Country.Name","Country.Code","Series.Name",yeari))]
+        #     w3 <- reshape(w2, idvar=c("Country.Name" ,"Country.Code"), 
+        #         timevar="Series.Name", direction="wide")
+        #     w3 <- w3[,c(1,2,3,4,34,37,38,39,41,47,49,51,53)]
+        #     w3[,(dim(w3)[2]+1)] <- yeari
+        #     colnames(w3) <- c("countryname","countrycode", "N","H","Nagg","Nfisheries","NforestES","NforestT","Nmangroves","Npa","Foreign", "K","TotalWealth","year")
+        #     if (i==1){Wealth <- w3} else {
+        #         Wealth <- rbind(Wealth,w3)
+        #     }
+        # }
+
+        # colnames(gdp) <- c("countryname", "countrycode", "seriesname","seriescode",1995:2018)
+        # for (i in 1:length(years)){
+        #     yeari <- years[i]
+        #     gdp2 <- gdp[,which(colnames(gdp) %in% 
+        #         c("countryname","countrycode","seriesname",yeari))]
             
-            gdp3 <- reshape(gdp2, idvar=c("countryname","countrycode"), 
-                timevar="seriesname", direction="wide")
-            gdp3 <- gdp3[,c(1:3)]
-            gdp3[,4] <- yeari
-            colnames(gdp3) <- c("countryname","countrycode","GDP","year")
-            if (i==1){Gdp <- gdp3} else {
-                Gdp <- rbind(Gdp,gdp3)
-            }
-        }
+        #     gdp3 <- reshape(gdp2, idvar=c("countryname","countrycode"), 
+        #         timevar="seriesname", direction="wide")
+        #     gdp3 <- gdp3[,c(1:3)]
+        #     gdp3[,4] <- yeari
+        #     colnames(gdp3) <- c("countryname","countrycode","GDP","year")
+        #     if (i==1){Gdp <- gdp3} else {
+        #         Gdp <- rbind(Gdp,gdp3)
+        #     }
+        # }
         
-        wealth <- merge(Wealth,Gdp, by = c("countrycode","year"),all=TRUE)
-        wealth <- wealth[-c(which(wealth[,1]=="")),] #no data in these rows
-        glimpse(wealth)
-        wealth$GDP <- as.numeric(as.character(wealth$GDP)) * 1.06 #converting 2015 to 2018 usd
-        colnames(wealth)[3] <- "countryname"
+        # wealth <- merge(Wealth,Gdp, by = c("countrycode","year"),all=TRUE)
+        # wealth <- wealth[-c(which(wealth[,1]=="")),] #no data in these rows
+        # glimpse(wealth)
+        # wealth$GDP <- as.numeric(as.character(wealth$GDP)) * 1.06 #converting 2015 to 2018 usd
+        # colnames(wealth)[3] <- "countryname"
         
 
         
-        colnames(population) <-  c("countryname", "countrycode", "seriesname","seriescode",1995:2018)
-        years <- c(1995:2018)
-        for (i in 1:length(years)){
-            yeari <- years[i]
-            w2 <- population[,which(colnames(population) %in% 
-                c("countryname", "countrycode", "seriesname",yeari))]
-            w3 <- reshape(w2, idvar=c("countryname", "countrycode"), 
-                timevar="seriesname", direction="wide")
-            w3[,4] <- yeari
-            colnames(w3) <- c("countryname","countrycode","Population","year")
-            if (i==1){Population <- w3} else {
-                Population  <- rbind(Population,w3)
-            }
-        }
-        wealth_data <- merge(wealth,Population,all=TRUE,by=c("countrycode","year"))
-        wdata_1995_2018 <- wealth_data
+        # colnames(population) <-  c("countryname", "countrycode", "seriesname","seriescode",1995:2018)
+        # years <- c(1995:2018)
+        # for (i in 1:length(years)){
+        #     yeari <- years[i]
+        #     w2 <- population[,which(colnames(population) %in% 
+        #         c("countryname", "countrycode", "seriesname",yeari))]
+        #     w3 <- reshape(w2, idvar=c("countryname", "countrycode"), 
+        #         timevar="seriesname", direction="wide")
+        #     w3[,4] <- yeari
+        #     colnames(w3) <- c("countryname","countrycode","Population","year")
+        #     if (i==1){Population <- w3} else {
+        #         Population  <- rbind(Population,w3)
+        #     }
+        # }
+        # wealth_data <- merge(wealth,Population,all=TRUE,by=c("countrycode","year"))
+        # wdata_1995_2018 <- wealth_data
 
-        wealth_data$H <- as.numeric(as.character(wealth_data$H))
-        wealth_data$K <- as.numeric(as.character(wealth_data$K))
-        wealth_data$N <- as.numeric(as.character(wealth_data$N))
-        wealth_data$NforestES <- as.numeric(as.character(wealth_data$NforestES))
-        wealth_data$NforestT <- as.numeric(as.character(wealth_data$NforestT))
-        wealth_data$Nmangroves <- as.numeric(as.character(wealth_data$Nmangroves))
-        wealth_data$Nfisheries <- as.numeric(as.character(wealth_data$Nfisheries))
-        wealth_data$Nagg <- as.numeric(as.character(wealth_data$Nagg))
-        wealth_data$Foreign <- as.numeric(as.character(wealth_data$Foreign))
-        wealth_data$Npa <- as.numeric(as.character(wealth_data$Npa))
-        wealth_data$TotalWealth <- as.numeric(as.character(wealth_data$TotalWealth))
-        wealth_data$Population <- as.numeric(as.character(wealth_data$Population))
+        # wealth_data$H <- as.numeric(as.character(wealth_data$H))
+        # wealth_data$K <- as.numeric(as.character(wealth_data$K))
+        # wealth_data$N <- as.numeric(as.character(wealth_data$N))
+        # wealth_data$NforestES <- as.numeric(as.character(wealth_data$NforestES))
+        # wealth_data$NforestT <- as.numeric(as.character(wealth_data$NforestT))
+        # wealth_data$Nmangroves <- as.numeric(as.character(wealth_data$Nmangroves))
+        # wealth_data$Nfisheries <- as.numeric(as.character(wealth_data$Nfisheries))
+        # wealth_data$Nagg <- as.numeric(as.character(wealth_data$Nagg))
+        # wealth_data$Foreign <- as.numeric(as.character(wealth_data$Foreign))
+        # wealth_data$Npa <- as.numeric(as.character(wealth_data$Npa))
+        # wealth_data$TotalWealth <- as.numeric(as.character(wealth_data$TotalWealth))
+        # wealth_data$Population <- as.numeric(as.character(wealth_data$Population))
         
-        wealth_data <- wealth_data[,-which(names(wealth_data) %in% c("countryname.x","countryname.y","NA","source"))]
-        table(wealth_data$countrycode)
-        glimpse(wealth_data)
+        # wealth_data <- wealth_data[,-which(names(wealth_data) %in% c("countryname.x","countryname.y","NA","source"))]
+        # table(wealth_data$countrycode)
+        # glimpse(wealth_data)
 
-        library("countrycode")
-        mcn2$countrycode <- countrycode(mcn2$sovereignt,origin="country.name",destination="iso3c")
-        mcn3 <- merge(mcn2,wealth_data,by=c("countrycode","year"),all=TRUE)
+         library("countrycode")
+         mcn2$countrycode <- countrycode(mcn2$sovereignt,origin="country.name",destination="iso3c")
+        mcn3 <- merge(mcn2,df,by=c("countrycode","year"),all=TRUE)
 
         glimpse(mcn3)
         #mcn3 <- mcn3[which(mcn3$countrycode!=""),]
@@ -428,21 +414,21 @@ library(tidyverse)
     mean_sst_id$hot_location_2000 <- 1
     mean_sst_id$hot_location_2000[which(mean_sst_id$sst<hot_50)] <- 0
     mcn4 <- merge(mcn4,mean_sst_id[,c(1,3)],by="gridcell_id",all=TRUE)
-
-    glimpse(mcn4)        
+       
     
-    meanGDP <- aggregate(GDP ~countrycode,data=mcn4[which(mcn4$mangrove_area>0),],FUN="mean")
-    rich_50 <- quantile(meanGDP$GDP, probs=c(0.5),na.rm=TRUE)
-    mean_gdp_id <- aggregate(GDP ~ gridcell_id, FUN="mean", data=mcn4)
+    meanGDP <- aggregate(GDP_country ~countrycode,data=mcn4[which(mcn4$mangrove_area>0),],FUN="mean")
+    rich_50 <- quantile(meanGDP$GDP_country, probs=c(0.5),na.rm=TRUE)
+    mean_gdp_id <- aggregate(GDP_country ~ gridcell_id, FUN="mean", data=mcn4)
     mean_gdp_id$rich <- 1
-    mean_gdp_id$rich[which(mean_gdp_id$GDP<rich_50)] <- 0
+    mean_gdp_id$rich[which(mean_gdp_id$GDP_country<rich_50)] <- 0
     mcn4 <- merge(mcn4,mean_gdp_id[,c(1,3)],by="gridcell_id",all=TRUE)
 
+    
     #unique(mcn$countrycode[which(mcn$rich==1 & mcn$income!="high")] )
 
     
     mcn4$logGDPpc <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)
-    mcn4$logGDPpc_country <- log(mcn4$GDP/mcn4$Population)
+    mcn4$logGDPpc_country <- log(mcn4$GDPpc_country)
     meanlogGDPpc <- aggregate(logGDPpc_country ~countrycode,data=mcn4[which(mcn4$mangrove_area>0),],FUN="mean")
     qinc <- quantile(meanlogGDPpc$logGDPpc_country , probs=c(0.33,0.66),na.rm=TRUE)
     c_low <- meanlogGDPpc$countrycode[which(meanlogGDPpc$logGDPpc_country < qinc[1])]
@@ -453,11 +439,12 @@ library(tidyverse)
 
 
     glimpse(mcn4)
-    glimpse(sst_anom_bins_hr01)
-    mcn4 <- merge(mcn4,sst_anom_bins_hr01,by=c("gridcell_id","year"),all=TRUE)
-    mcn4 <- merge(mcn4,sst_anom_bins_mr05,by=c("gridcell_id","year"),all=TRUE)
+    glimpse(mcn4) 
+    #glimpse(sst_anom_bins_hr01)
+    #mcn4 <- merge(mcn4,sst_anom_bins_hr01,by=c("gridcell_id","year"),all=TRUE)
+    #mcn4 <- merge(mcn4,sst_anom_bins_mr05,by=c("gridcell_id","year"),all=TRUE)
     
-    mcn4 <- mcn4[,-which(names(mcn4) %in% c("X","X.x","X.y"))] 
+    #mcn4 <- mcn4[,-which(names(mcn4) %in% c("X","X.x","X.y"))] 
 
     
     mcn4$logGDPpc <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)
@@ -478,7 +465,7 @@ library(tidyverse)
 
     
     mcn4 <- merge(mcn4,mean_hottest,by="gridcell_id",all=T)
-    mcn4 <- mcn4[,-which(names(mcn4) %in% c("X","X.x","X.y"))] 
+    #mcn4 <- mcn4[,-which(names(mcn4) %in% c("X","X.x","X.y"))] 
     glimpse(mcn4)
 
     mcn4$logSumGDP <- log(mcn4$Sum_GDP_50km)

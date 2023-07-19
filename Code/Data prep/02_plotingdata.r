@@ -308,8 +308,8 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
 
     change_area
     
-    model3 <- felm(annual_area_change~year|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
-    summary(model3)
+    #model3 <- felm(annual_area_change~year|gridcell_id|0|0,data=filtered_mcn[which(filtered_mcn$mangrove_area>0),])
+    #summary(model3)
 
     mcn$mangrove_area[which(mcn$year==1996)]
     mcn$year <- as.double(mcn$year)
@@ -1023,7 +1023,537 @@ ggplot(mcn, aes(x=sst_hottest,y=b33_34C,color=sst))+geom_point()
     ## Plot individual study unit high fragmentation low area loss (end)
 
     mcn$holes_density <- mcn$holes / mcn$mangrove_area
+    mcn$np_density <- mcn$np / mcn$mangrove_area
     
+    no_country_id <- unique(mcn$gridcell_id[which(is.na(mcn$R5) & mcn$mangrove_area >0)])
+    
+    vars <- c("holes", "mangrove_area","np")
+        
+    mcn_c_sum <-  mcn %>%
+            group_by(countrycode,year,R5) %>%
+            summarise(across(all_of(vars), sum, na.rm = FALSE))
+    
+    vars <- c("pafrac")   
+    mcn_c_median <-  mcn %>%
+            group_by(countrycode,year,R5) %>%
+            summarise(across(all_of(vars), mean, na.rm = FALSE))
+    mcn_c <- merge(mcn_c_sum,mcn_c_median,by=c("year","countrycode","R5"))
+    glimpse(mcn_c)
+
+
+    ggplot(mcn_c)+geom_point(aes(x=year,y=pafrac))
+
+    mcn_c$holes_density <- mcn_c$holes / mcn_c$mangrove_area
+    mcn_c$np_density <- mcn_c$np / mcn_c$mangrove_area
+    mcn_c$patch_size <- mcn_c$mangrove_area / mcn_c$np
+    
+    mcn_c <- mcn_c %>%
+        group_by(countrycode) %>%
+        arrange(year) %>%
+        mutate(holes_change = holes / dplyr::lag(na.locf(holes, na.rm = FALSE)-1),
+               area_change = mangrove_area - dplyr::lag(na.locf(mangrove_area, na.rm = FALSE)),
+               holes_d_change = holes_density - dplyr::lag(na.locf(holes_density, na.rm = FALSE)),
+               patch_size_change = patch_size / dplyr::lag(na.locf(patch_size, na.rm = FALSE)-1) ,
+               np_change = np / dplyr::lag(na.locf(np, na.rm = FALSE)-1) ,
+               pafrac_change = pafrac / dplyr::lag(na.locf(pafrac, na.rm = FALSE)-1)  ,
+               np_d_change = np_density / dplyr::lag(na.locf(np_density, na.rm = FALSE))-1) %>%
+        ungroup() %>%  
+        arrange(countrycode, year)
+        glimpse(mcn_c)
+
+        mcn_c <- mcn_c %>%
+        mutate(holes_pos = ifelse(holes_change >= 0, 1, 0),
+               area_pos = ifelse(area_change >= 0, 1, 0),
+               holes_d_pos = ifelse(holes_d_change >= 0, 1, 0),
+               patch_size_pos = ifelse(patch_size_change >= 0, 1, 0),
+               np_pos = ifelse(np_change >= 0, 1, 0),
+               pafrac_pos = ifelse(pafrac_change >= 0, 1, 0),
+               np_d_pos = ifelse(np_d_change >= 0, 1, 0))
+
+
+
+    # specify variables and corresponding pos flags
+        vars <- c("holes_change", "area_change","holes_d_change", "patch_size_change", "np_change", "pafrac_change", "np_d_change")
+        pos_flags <- c("holes_pos","area_pos", "holes_d_pos", "patch_size_pos", "np_pos", "pafrac_pos", "np_d_pos")
+
+        mcn_c <- mcn_c[which(!is.na(mcn_c$R5)),]
+        install.packages("spatstat.utils")
+library(spatstat.utils)
+        # loop over each variable/flag pair
+        for(i in seq_along(vars)){
+        # get variable and flag names
+        var <- vars[i]
+        pos_flag <- pos_flags[i]
+        
+        # create summary and store in list
+        summary_dfs_median_df <- mcn_c %>%
+            group_by(R5, year, !!sym(pos_flag)) %>%
+            summarise(across(all_of(var), median, na.rm = TRUE)) %>% as.data.frame()
+        names(summary_dfs_median_df)[3] <- "pos"
+        
+        summary_dfs_sum_df <- mcn_c %>%
+            group_by(R5, year, !!sym(pos_flag)) %>%
+            summarise(across(all_of(var), sum, na.rm = TRUE)) %>% as.data.frame()
+        names(summary_dfs_sum_df)[3] <- "pos"
+        
+        summary_dfs_total_median_df <- mcn_c %>%
+            group_by(year) %>%
+            summarise(across(all_of(var), median, na.rm = TRUE)) %>% as.data.frame()
+        
+        summary_dfs_total_sum_df <- mcn_c %>%
+            group_by(year) %>%
+            summarise(across(all_of(var), sum, na.rm = TRUE)) %>% as.data.frame()
+            if(i==1){
+                summary_dfs_median <- summary_dfs_median_df
+                summary_dfs_sum <- summary_dfs_sum_df
+                summary_dfs_total_median <- summary_dfs_total_median_df
+                summary_dfs_total_sum <- summary_dfs_total_sum_df
+            } else{
+                summary_dfs_median <- merge(summary_dfs_median,summary_dfs_median_df,by=c("year","R5","pos"),all=TRUE)
+                summary_dfs_sum <- merge(summary_dfs_sum,summary_dfs_sum_df,by=c("year","R5","pos"),all=TRUE)
+                summary_dfs_total_median <- merge(summary_dfs_total_median,summary_dfs_total_median_df,by=c("year"),all=TRUE)
+                summary_dfs_total_sum <- merge(summary_dfs_total_sum,summary_dfs_total_sum_df,by=c("year"),all=TRUE)
+            }
+        }
+
+        glimpse(summary_dfs_median)
+        glimpse(summary_dfs_median_df)
+        glimpse(summary_dfs_total_sum)
+        sum(mcn_c$area_change,na.rm=T)
+
+
+        #ag_r5_pos <- merge(summary_dfs_median,summary_dfs_sum,by=c("year","R5"),suffixes=c("_median","_sum"))
+        #ag_total <- merge(summary_dfs_total_median,summary_dfs_total_sum,by=c("year"),suffixes=c("_median","_sum"))
+        #glimpse(ag_total)
+        #glimpse(ag_r5_pos)
+
+        y_i <- c(2016 ,2017 ,2018 ,2019)
+        y_i <- c(1996,ag_total$year[which(ag_total$holes_change_median!=0)] )#[1] 2007 2008 2009 2016 2017 2018 2019
+        
+ 
+        library(ggbreak) 
+        library(scico) 
+                    
+                    summary_dfs_sum <- summary_dfs_sum[which(summary_dfs_sum$R5!="REF"),]
+                    num_levels <- length(unique(summary_dfs_sum$R5))
+                    color_vector <- scico(n = num_levels, palette = "batlow")
+
+        ggplot(summary_dfs_sum[which(summary_dfs_sum$year %in%y_i ),])+
+                    geom_bar(aes(x=(year),y=area_change,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Area Change (km2)")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    #scale_fill_manual(values = color_vector) +
+                    #scale_color_manual(values = color_vector)+
+                    scale_fill_manual(values = color_vector)+
+                    #scale_fill_scico_d()+
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],
+                        aes(x=year,y=cumsum(area_change)),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE)) + 
+                    scale_x_break(c(1998.5,2006))+ 
+                    scale_x_break(c(2010.5,2015))
+        ggsave("Figures/Draft/Area_CountryLevel.png",dpi=600)
+
+        
+            
+    mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
+    mcn$holes_density <- mcn$holes / mcn$mangrove_area
+    glimpse(mcn)
+    
+    mcn$np_density <- mcn$np / mcn$mangrove_area
+    mcn <- mcn %>%
+        group_by(gridcell_id) %>%
+        arrange(year) %>%
+        mutate(holes_change = holes - dplyr::lag(na.locf(holes, na.rm = FALSE)-1),
+               area_change = mangrove_area - dplyr::lag(na.locf(mangrove_area, na.rm = FALSE)),
+               holes_d_change = holes_density - dplyr::lag(na.locf(holes_density, na.rm = FALSE)),
+               patch_size_change = patch_size / dplyr::lag(na.locf(patch_size, na.rm = FALSE)-1) ,
+               np_change = np / dplyr::lag(na.locf(np, na.rm = FALSE)-1) ,
+               pafrac_change = pafrac / dplyr::lag(na.locf(pafrac, na.rm = FALSE)-1)  ,
+               np_d_change = np_density / dplyr::lag(na.locf(np_density, na.rm = FALSE))-1) %>%
+        ungroup() %>%  
+        arrange(gridcell_id, year)
+        
+    my <- aggregate(mangrove_area~year,FUN="sum",data=mcn)
+    weighted_means_h <- mcn %>%
+                        group_by(year) %>%
+                        mutate(weight = mangrove_area / sum(mangrove_area, na.rm = TRUE)) %>%
+                        summarise(holes_weighted_mean = sum(holes * weight, na.rm = TRUE)) %>% as.data.frame()
+    weighted_means_h <- merge(weighted_means_h,my,by="year")
+    
+    weighted_means_h$holes_density <- weighted_means_h$holes_weighted_mean / weighted_means_h$mangrove_area
+    weighted_means_h$holes_perha <- weighted_means_h$holes_density*100
+    ggplot(weighted_means_h,aes(x=year,y=holes_perha))+geom_line()
+
+    holes_perha1996 <- weighted_means_h$holes_perha[weighted_means_h$year==1996]
+    weighted_means_h$change_holesoerha_wrt1996 <- weighted_means_h$holes_perha-holes_perha1996
+    ggplot(weighted_means_h,aes(x=year,y=(change_holesoerha_wrt1996)))+geom_line()
+    write.csv(weighted_means_h,"Data/output/weighted_means_h.csv")
+
+    weighted_means_h_R5 <- mcn %>%
+                        group_by(R5) %>%
+                        mutate(weight = mangrove_area / sum(mangrove_area, na.rm = TRUE)) %>%
+                        summarise(holes_weighted_mean = sum(holes * weight, na.rm = TRUE)) %>% as.data.frame()
+    my <- aggregate(mangrove_area~year,FUN="sum",data=mcn)
+    weighted_means_h_R5 <- merge(weighted_means_h,my,by="year")
+
+        # Calculate the 0.01 and 0.99 quantiles
+        lower_limit <- quantile(mcn$holes_d_change, 0.001, na.rm = TRUE)
+        upper_limit <- quantile(mcn$holes_d_change, 0.999, na.rm = TRUE)
+
+        # Remove outliers
+        mcn <- mcn[mcn$holes_d_change > lower_limit & mcn$holes_d_change < upper_limit, ]
+
+        glimpse(mcn)
+        aggregate(mangrove_area~year,FUN="sum",data=mcn)
+
+    mcn <- mcn %>%
+        mutate(holes_pos = ifelse(holes_change >= 0, 1, 0),
+               area_pos = ifelse(area_change >= 0, 1, 0),
+               holes_d_pos = ifelse(holes_d_change >= 0, 1, 0),
+               patch_size_pos = ifelse(patch_size_change >= 0, 1, 0),
+               np_pos = ifelse(np_change >= 0, 1, 0),
+               pafrac_pos = ifelse(pafrac_change >= 0, 1, 0),
+               np_d_pos = ifelse(np_d_change >= 0, 1, 0))
+
+        # specify variables and corresponding pos flags
+        vars <- c("holes_change", "area_change","holes_d_change", "patch_size_change", "np_change", "pafrac_change", "np_d_change")
+        pos_flags <- c("holes_pos","area_pos", "holes_d_pos", "patch_size_pos", "np_pos", "pafrac_pos", "np_d_pos")
+
+        # initialize an empty list to store each summary dataframe
+        summary_dfs_median <- list()
+        summary_dfs_sum <- list()
+        summary_dfs_total_median <- list()
+        summary_dfs_total_sum <- list()
+
+        summ_median_holes <- mcn %>%
+                group_by("year") %>%
+                summarise(holes_d_, median, na.rm = TRUE) %>% as.data.frame()
+            names(summary_dfs_median_df)[3] <- "pos"
+
+
+        for(i in seq_along(vars)){
+            # get variable and flag names
+            var <- vars[i]
+            pos_flag <- pos_flags[i]
+            
+            # create summary and store in list
+            summary_dfs_median_df <- mcn %>%
+                group_by(R5, year, !!sym(pos_flag)) %>%
+                summarise(across(all_of(var), median, na.rm = TRUE)) %>% as.data.frame()
+            names(summary_dfs_median_df)[3] <- "pos"
+            
+            summary_dfs_sum_df <- mcn %>%
+                group_by(R5, year, !!sym(pos_flag)) %>%
+                summarise(across(all_of(var), sum, na.rm = TRUE)) %>% as.data.frame()
+            names(summary_dfs_sum_df)[3] <- "pos"
+            
+            summary_dfs_total_median_df <- mcn %>%
+                group_by(year) %>%
+                summarise(across(all_of(var), median, na.rm = TRUE)) %>% as.data.frame()
+            
+            summary_dfs_total_sum_df <- mcn %>%
+                group_by(year) %>%
+                summarise(across(all_of(var), sum, na.rm = TRUE)) %>% as.data.frame()
+                if(i==1){
+                    summary_dfs_median <- summary_dfs_median_df
+                    summary_dfs_sum <- summary_dfs_sum_df
+                    summary_dfs_total_median <- summary_dfs_total_median_df
+                    summary_dfs_total_sum <- summary_dfs_total_sum_df
+                } else{
+                    summary_dfs_median <- merge(summary_dfs_median,summary_dfs_median_df,by=c("year","R5","pos"),all=TRUE)
+                    summary_dfs_sum <- merge(summary_dfs_sum,summary_dfs_sum_df,by=c("year","R5","pos"),all=TRUE)
+                    summary_dfs_total_median <- merge(summary_dfs_total_median,summary_dfs_total_median_df,by=c("year"),all=TRUE)
+                    summary_dfs_total_sum <- merge(summary_dfs_total_sum,summary_dfs_total_sum_df,by=c("year"),all=TRUE)
+                }
+        }
+
+
+        glimpse(summary_dfs_median)
+        glimpse(summary_dfs_median_df)
+        glimpse(summary_dfs_total_sum)
+        sum(mcn_c$area_change,na.rm=T)
+
+
+        #ag_r5_pos <- merge(summary_dfs_median,summary_dfs_sum,by=c("year","R5"),suffixes=c("_median","_sum"))
+        #ag_total <- merge(summary_dfs_total_median,summary_dfs_total_sum,by=c("year"),suffixes=c("_median","_sum"))
+        #glimpse(ag_total)
+        #glimpse(ag_r5_pos)
+
+        y_i <- c(2016 ,2017 ,2018 ,2019)
+        y_i <- c(1996,ag_total$year[which(ag_total$holes_change_median!=0)] )#[1] 2007 2008 2009 2016 2017 2018 2019
+        
+ 
+        library(ggbreak) 
+        library(scico) 
+                    
+                    summary_dfs_sum <- summary_dfs_sum[which(summary_dfs_sum$R5!="REF"),]
+                    color_vector <- scico(n = 5, palette = "batlow")
+
+        
+        y_i <- c(1996,ag_total$year[which(ag_total$holes_change_median!=0)] )#[1] 2007 2008 2009 2016 2017 2018 2019
+        #y_i <- c(2016 ,2017 ,2018 ,2019,2020)
+         
+        
+        summary_dfs_sum$color <- " "
+        summary_dfs_total_sum$color <- " "
+        summary_dfs_sum <- summary_dfs_sum[which(!is.na(summary_dfs_sum$R5)),]
+
+        summary_dfs_total_sum <- merge(summary_dfs_total_sum,data.frame(year=1996,area_change=0),by=c("year","area_change"),all=T)
+
+        bars_sumsum_area_short <- ggplot(summary_dfs_sum[which(summary_dfs_sum$year %in%y_i ),])+
+                    geom_bar(aes(x=(year),y=area_change,
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Area Change \n(km2)")+
+                    labs(fill=guide_legend("Region"))+
+                    scale_fill_manual(values = color_vector)+
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],
+                        aes(x=year,y=cumsum(area_change),color=factor(color)),size=1.5)+
+                    theme_bw() + 
+                    scale_x_break(c(1998.8,2006))+ 
+                    scale_x_break(c(2010.5,2015))+ 
+                    guides(fill=guide_legend(reverse = TRUE))+ 
+                    scale_color_manual(values = c(" " = "indianred")) +
+                    guides(fill=guide_legend(reverse = TRUE),color=guide_legend(title="Net Cumulative \nChange"))
+        bars_sumsum_area_short
+        
+        
+        # bars_sumsum_holes_short <- ggplot(summary_dfs_sum[which(summary_dfs_sum$year %in%y_i ),])+
+        #             geom_bar(aes(x=(year),y=holes_change,
+        #                 fill=factor(R5)),stat="identity")+
+        #             xlab("Year")+ylab("Number of Gaps")+
+        #             labs(fill=guide_legend("Region"))+
+        #             scale_fill_manual(values = color_vector)+
+        #             geom_hline(aes(yintercept=0),linetype="dashed")+
+        #             geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],
+        #                 aes(x=year,y=cumsum(holes_change),color=factor(color)),size=1.5)+
+        #             theme_bw() +
+        #             scale_color_manual(values = c(" " = "indianred")) +
+        #             scale_x_break(c(1998.5,2006))+ 
+        #             scale_x_break(c(2010.5,2015))+ 
+        #             guides(fill=guide_legend(reverse = TRUE),color=guide_legend(title="Net Cumulative \nChange"))
+        # bars_sumsum_holes_short
+        
+        # library(cowplot)
+
+        # plot_grid(bars_sumsum_area_short, bars_sumsum_holes_short)
+
+        # library(patchwork)
+
+        # bars_sumsum_area_short + bars_sumsum_holes_short
+
+
+        # ggarrange(bars_sumsum_area_short,bars_sumsum_holes_short)
+        # ggsave("Figures/Draft/Bars_Line_Historial_SHORT.png",dpi=600)
+
+        summary_dfs_total_sum[which(summary_dfs_total_sum$year==1996),-c(1)] <- 0
+        
+        summary_dfs_total_sum$color <-" "
+        bars_sumsum_holes_short <- ggplot(summary_dfs_sum[which(summary_dfs_median$year %in%y_i ),])+
+                    geom_bar(aes(x=(year),y=holes_d_change,
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Number of \nGaps per Area")+
+                    labs(fill=guide_legend("Region"))+
+                    scale_fill_manual(values = color_vector)+
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    #geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],aes(x=year,y=(holes_d_change)),color="white",linetype="dashed")+
+                    geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],
+                        aes(x=year,y=cumsum(holes_d_change),color=factor(color)),size=1.5)+
+                    scale_color_manual(values = c(" " = "indianred")) +
+                    guides(fill=guide_legend(reverse = TRUE),color=guide_legend(title="Net Cumulative \nChange"))+
+                    theme_bw() +theme(legend.position="bottom")+
+                    scale_x_break(c(1998.8,2006))+ 
+                    scale_x_break(c(2010.5,2015))
+                    #scale_x_continuous(breaks = c(1998.8, 2006, 2010.5, 2015))
+                    bars_sumsum_holes_short
+        leg <- get_legend(bars_sumsum_holes_short)
+        
+        ((bars_sumsum_area_short+ theme(legend.position = "none")) /(( bars_sumsum_holes_short)+ theme(legend.position = "none"))/(leg)) +
+                plot_layout(heights=c(3,3,1))
+
+                write.csv(summary_dfs_total_sum,"Data/Fig_Vals/Past_Area_Change.csv")
+                write.csv(summary_dfs_total_median,"Data/Fig_Vals/Past_All_Median.csv")
+                
+                cumsum(summary_dfs_total_median$holes_d_change)
+  #ggsave("Figures/Draft/Bar_CumLine_Historical_Long.png",dpi=600)
+
+summary_dfs_total_sum
+
+        combined_df_median <- ungroup(bind_rows(summary_dfs_median))
+        combined_df_sum <- ungroup(bind_rows(summary_dfs_sum))
+        
+        combined_df_total_median<- Reduce(function(df1, df2) full_join(df1, df2, by = c("year")), summary_dfs_total_median)
+        combined_df_total_sum<- Reduce(function(df1, df2) full_join(df1, df2, by = c("year")), summary_dfs_total_sum)
+
+        ag_r5_pos <- merge(combined_df_median,combined_df_sum,by=c("year","R5"),suffixes=c("_median","_sum"))
+        ag_total <- merge(combined_df_total_median,combined_df_total_sum,by=c("year"),suffixes=c("_median","_sum"))
+        glimpse(ag_total)
+
+        y_i <- c(2016 ,2017 ,2018 ,2019)
+        y_i <- c(1996,ag_total$year[which(ag_total$holes_change_median!=0)] )#[1] 2007 2008 2009 2016 2017 2018 2019
+        
+ 
+                        library(ggbreak) 
+        ggplot(ag_r5_pos[which(ag_r5_pos$year %in%y_i),])+
+                    geom_bar(aes(x=(year),y=patch_size_change_median,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Holes Change")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    #scale_fill_manual(values = color_vector) +
+                    #scale_color_manual(values = color_vector)+
+                    geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=ag_total[which(ag_total$year %in% y_i),],
+                        aes(x=year,y=cumsum(patch_size_change_median)),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE)) + 
+                    scale_x_break(c(1997,2006))+ 
+                    scale_x_break(c(2010,2015))
+        
+        y_i <- ag_total$year[which(ag_total$holes_change_median!=0)]
+        y_i <- c( 2008 ,2009,2016 ,2017 ,2018 ,2019)
+        y_i <- c(2016 ,2017 ,2018 ,2019)
+        ggplot(ag_r5_pos[which(ag_r5_pos$year %in%y_i),])+
+                    geom_bar(aes(x=(year),y=patch_size_change_median,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Gaps")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    #scale_fill_manual(values = color_vector) +
+                    #scale_color_manual(values = color_vector)+
+                    #geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=ag_total[which(ag_total$year %in% y_i),],
+                        aes(x=(year),y=patch_size_change_median),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE))
+        
+        y_i <- ag_total$year[which(ag_total$holes_change_median!=0)]
+        y_i <- c( 2008 ,2009,2016 ,2017 ,2018 ,2019)
+        y_i <- c(2016 ,2017 ,2018 ,2019)
+        ggplot(ag_r5_pos[which(ag_r5_pos$year %in%y_i),])+
+                    geom_bar(aes(x=(year),y=pafrac_change_median,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Gaps")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    #scale_fill_manual(values = color_vector) +
+                    #scale_color_manual(values = color_vector)+
+                    #geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=ag_total[which(ag_total$year %in% y_i),],
+                        aes(x=(year),y=pafrac_change_median),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE))
+
+        y_i <- ag_total$year[which(ag_total$holes_change_median!=0)]
+        y_i <- c( 2008 ,2009,2016 ,2017 ,2018 ,2019)
+        y_i <- c(2016 ,2017 ,2018 ,2019)
+        ggplot(ag_r5_pos[which(ag_r5_pos$year %in%y_i),])+
+                    geom_bar(aes(x=(year),y=area_change_sum,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Gaps")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    #scale_fill_manual(values = color_vector) +
+                    #scale_color_manual(values = color_vector)+
+                    #geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=ag_total[which(ag_total$year %in% y_i),],
+                        aes(x=(year),y=cumsum(area_change_sum)),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE))
+
+        sum(mcn$mangrove_area[which(mcn$year==1996)],na.rm=T)
+        sum(mcn$mangrove_area[which(mcn$year==2020)],na.rm=T) - sum(mcn$mangrove_area[which(mcn$year==1996)],na.rm=T)
+
+
+        #         # join all dataframes in the list into one dataframe
+        # combined_df <- Reduce(function(df1, df2) full_join(df1, df2, by = c("R5", "year")), summary_dfs)
+
+
+mcn %>%
+        group_by(R5, year, holes_pos) %>%
+        summarise(across(all_of(mean_cols), mean, na.rm = TRUE),  # mean for specified columns
+                    across(all_of(sum_cols), sum, na.rm = TRUE))   # sum for specified columns
+
+    
+    mcn$holes_pos <- 1
+    mcn$holes_pos[which(mcn$holes_d_change<0)]<-0
+    
+    ag_mcn_holes <- aggregate(holes_density_change~R5+year+holes_pos,data=mcn,FUN="median")
+    agg_aloss_neg_total <- aggregate(holes_density_change~year,data=mcn,FUN="median")
+
+    ggplot(ag_mcn_holes)+
+                    geom_bar(aes(x=year,y=holes_density_change,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Gaps")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    scale_fill_manual(values = color_vector) +
+                    scale_color_manual(values = color_vector)+
+                    #geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=agg_aloss_neg_total,aes(x=year,y=holes_density_change),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE))
+    
+    mcn <- mcn %>%
+        group_by(gridcell_id) %>%
+        arrange(year) %>%
+        mutate(holes_change = holes - dplyr::lag(na.locf(holes, na.rm = FALSE)),
+               holes_d_change = holes_density - dplyr::lag(na.locf(holes_density, na.rm = FALSE)),
+               patch_size_change = patch_size - dplyr::lag(na.locf(patch_size, na.rm = FALSE)) ,
+               np_change = np - dplyr::lag(na.locf(np, na.rm = FALSE)) ,
+               pafrac_change = pafrac - dplyr::lag(na.locf(pafrac, na.rm = FALSE))  ,
+               np_d_change = np_density - dplyr::lag(na.locf(np_density, na.rm = FALSE))) %>%
+        ungroup() %>%  
+        arrange(gridcell_id, year)
+    
+    mcn$holes_pos <- 1
+    mcn$holes_pos[which(mcn$holes_change<0)]<-0
+    
+    ag_mcn_holes <- aggregate(holes_change~R5+year+holes_pos,data=mcn,FUN="sum")
+    agg_aloss_neg_total <- aggregate(holes_change~year,data=mcn,FUN="sum")
+
+    ggplot(ag_mcn_holes)+
+                    geom_bar(aes(x=year,y=holes_change,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Gaps")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    scale_fill_manual(values = color_vector) +
+                    scale_color_manual(values = color_vector)+
+                    #geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=agg_aloss_neg_total,aes(x=year,y=holes_change),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE))
+
+    mcn <- mcn %>%
+                    group_by(gridcell_id) %>%
+                    arrange(year) %>%
+                    mutate(patch_size_change = patch_size - dplyr::lag(patch_size))%>% ungroup() %>%  arrange(gridcell_id,year)
+    
+    mcn$holes_pos <- 1
+    mcn$holes_pos[which(mcn$patch_size_change<0)]<-0
+    
+    ag_mcn_holes <- aggregate(patch_size_change~R5+year+holes_pos,data=mcn,FUN="mean")
+    agg_aloss_neg_total <- aggregate(patch_size_change~year,data=mcn,FUN="mean")
+
+    ggplot(ag_mcn_holes)+
+                    geom_bar(aes(x=year,y=patch_size_change,
+                        #fill=factor(holes_pos)),stat="identity")+
+                        fill=factor(R5)),stat="identity")+
+                    xlab("Year")+ylab("Change in Gaps")+
+                    labs(fill=guide_legend("Region"))+
+                    #scale_fill_manual(values=c("#20719e","#be6635"),labels=c("Gain","Loss"))+
+                    scale_fill_manual(values = color_vector) +
+                    scale_color_manual(values = color_vector)+
+                    #geom_hline(aes(yintercept=0),linetype="dashed")+
+                    geom_line(data=agg_aloss_neg_total,aes(x=year,y=patch_size_change),color="indianred",size=1.5)+
+                    theme_bw()+ guides(fill=guide_legend(reverse = TRUE))
+
+
     mcn_grouped <- mcn %>%
     arrange(gridcell_id,year)  %>% group_by(gridcell_id)%>%
     #filter(year %in% c(1996,2020)) %>%

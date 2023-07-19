@@ -28,6 +28,7 @@ for (i in seq_along(years)) {
     
 
     mean_precip <- exact_extract(annual_mean_precip, grid,'mean')
+    mean_precip_area <- exact_extract(area(annual_mean_precip), grid,'mean')
     mean_precip <- unlist(mean_precip)
     na_precip <- which(is.na(mean_precip))
     sp_buffer <-st_buffer(grid[na_precip,],100000) 
