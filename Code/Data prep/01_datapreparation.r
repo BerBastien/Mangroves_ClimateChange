@@ -472,9 +472,34 @@ library(WDI)
     mcn4$logPop <- log(mcn4$Population_Count_50km)
     mcn4$logGDPpc <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)
 
-    write.csv(mcn4,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
+ #   write.csv(mcn4,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
 #mcn4 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
 
+mcn2020 <- mcn4 %>% filter(year==2020) %>% filter(mangrove_area>0) %>% filter(is.na(R5))
+                unique(mcn2020$countrycode)
+                unique(paste0(mcn2020$Latitude,",",mcn2020$Longitude))
+                mcn4$latlot <- paste0(mcn4$Latitude,",",mcn4$Longitude)
+                mcn2020$latlot <- paste0(mcn2020$Latitude,",",mcn2020$Longitude)
+                names_latlon <- c("-19.1319486654551,-159.5"="ASIA","-17.1319435042391,-150.5"="ASIA",
+                   "22.8683898685419,-89.5"= "LAM","14.8683770788442,-82.5000000000003"="LAM",
+                    "13.8683707489465,-81.5000000000002"="LAM","12.8683635684406,-81.5"="LAM",
+                    "25.8683733492814,-79.5000000000002"="OECD",
+                    "20.8683938205675,-79.5000000000003"="LAM","11.8683555978666,-67.5"="LAM",
+                    "11.8683555978665,-66.4999999999998"="LAM","11.8683555978666,-64.5000000000001"="LAM",
+                    "16.8683869453379,40.4999999999999"="MAF","-22.1319475018277,40.4999999999996"="MAF",
+                    "10.8683468979047,45.5"="MAF","-9.13188579406375,46.4999999999998"="MAF","-10.1318956159673,47.4999999999999"="MAF",
+                    "-5.13184149328199,53.4999999999998"="MAF","-6.13185319777108,53.4999999999998"="MAF",
+                    "6.86830602287207,72.5000000000002"="ASIA")
+
+mcn2020$R5[mcn2020$latlot %in% names(names_latlon)] <- names_latlon[match(mcn2020$latlot[mcn2020$latlot %in% names(names_latlon)], names(names_latlon))]
+mcn2020$R5[which(is.na(mcn2020$R5))] <- "ASIA"
+
+newR5 <- data.frame(gridcell_id = mcn2020$gridcell_id, R5new = mcn2020$R5)
+mcn4 <- merge(mcn4,newR5,by="gridcell_id",all=TRUE)
+glimpse(mcn4)
+mcn4$R5[which(is.na(mcn4$R5))] <- mcn4$R5new[which(is.na(mcn4$R5))] 
+# Check the dataframe
+head(mcn4)
 
 glimpse(mcn4)
 
