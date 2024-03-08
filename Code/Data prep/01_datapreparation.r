@@ -1,12 +1,9 @@
 #Merge all data
+libraries <- c("ggalluvial", "cowplot", "biscale", "sf", "rnaturalearth", "ncdf4",
+               "rnaturalearthdata", "dplyr", "zoo", "scico", "ggplot2", "WDI",
+               "ggpubr", "mapproj","tidyr")
 
-
-# Load libraries
-library(sf)      # For working with spatial data in .gpkg format
-library(ncdf4)   # For reading netCDF files
-library(tidyverse)
-#install.packages("WDI")
-library(WDI)
+lapply(libraries, library, character.only = TRUE)
 
 # Set the path to your data files
     gpkg_file <- "C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\grid_nighlights_spatial.gpkg"
@@ -14,13 +11,15 @@ library(WDI)
     ntl_df_pre2013 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\nightlights_mangroves_pre2013.csv")
     #mhw <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mhw.csv")
     mhw <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mhw_full.csv")
+    mangroves_gdp_buffers <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangroves_gdp_buffers.csv")
     #mcw <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mcw.csv")
     mcw <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mcw_full.csv")
     mhw_toolbox <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mhw_toolbox.csv")
     mcw_toolbox <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mcw_toolbox.csv")
     mangrove_df <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches.csv")
     mangrove_df_pre2015 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_pre2015.csv")
-    mangrove_df_full <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_Jul10.csv")
+    #mangrove_df_full <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_Jul10.csv") 
+    mangrove_df_full <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\mangrove_cover_patches_aug04.csv")
     prcip <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\precip.csv")
     temp_anom <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\temp_grid.csv")
     temp_clim <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\climgrid.csv")
@@ -45,51 +44,15 @@ library(WDI)
     salinity  <- read.csv('C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\salinity.csv')
     sst_hottest <-read.csv('C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\sst_hottest.csv') 
 
-## Parenthesis to plot sst bins
-    glimpse(sst_bins_or)
-    glimpse(sst_bins)
-
-    long_sst_bins <- sst_bins %>%
-  pivot_longer(cols = b8_9C:b37_38C, names_to = "days", values_to = "bin_count")
-    glimpse(long_sst_bins)
-
-    long_sst_bins_or <- sst_bins_or %>%
-  pivot_longer(cols = b8_9C:b37_38C, names_to = "days", values_to = "bin_count")
-    glimpse(long_sst_bins_or)
-    names(long_sst_bins_or)[5] <- "bin_count_or"
-
-    merged_bins <- merge(long_sst_bins,long_sst_bins_or,by=c("gridcell_id","year","days"),all=T)
-    glimpse(merged_bins)
-    ggplot(merged_bins[which(merged_bins$year==2000),],aes(x=bin_count,y=bin_count_or))+geom_point()
-
-    aggregate(bin_count_or ~ year + gridcell_id,FUN="sum",data=merged_bins[which(merged_bins$year==2000),])
-    aggregate(bin_count ~ year + gridcell_id,FUN="sum",data=merged_bins[which(merged_bins$year==2000),])
-
-    empty_gridcell <- unique(merged_bins$gridcell_id[which(merged_bins$year==2000 &  is.na(merged_bins$bin_count_or) & !is.na(merged_bins$bin_count))])
-    empty_gridcell
-    
-    ggplot(merged_bins[which(merged_bins$year==2000 & merged_bins$gridcell_id == 997),],aes(x=bin_count,y=bin_count_or))+geom_point()
-    ggplot(merged_bins[which(merged_bins$year==2000 & merged_bins$gridcell_id == 200),],aes(x=bin_count,y=bin_count_or))+geom_point()
-    ggplot(merged_bins[which(merged_bins$year==2000 & merged_bins$gridcell_id == 38),],aes(x=bin_count,y=bin_count_or))+geom_point()
-    
-## Parenthesis to plot sst bins
-
-    
 
 # Read files
-    #mhw
-    glimpse(mhw)
-    glimpse(mcw)
     names(mhw)[2] <- "gridcell_id"
     names(mcw)[2] <- "gridcell_id"
     mhw_df <- merge(mhw,mcw,by=c("gridcell_id","year"))
-    glimpse(mhw_df)
     mhw_df_toolbox <- merge(mhw_toolbox,mcw_toolbox,by=c("gridcell_id","year"))
-    glimpse(mhw_df_toolbox)
     mhw_df <- mhw_df[,-which(names(mhw_df) %in% c("X.x","sst.y","X.y"))]
     mhw_df_toolbox  <- mhw_df_toolbox [,-which(names(mhw_df_toolbox ) %in% c("X.x","sst.y","X.y"))]
-    names(mhw_df)[which(names(mhw_df)=="sst.x")] <- "sst"
-    
+    names(mhw_df)[which(names(mhw_df)=="sst.x")] <- "sst"    
     names(mhw_df_toolbox)[c(3:8)] <- paste0( names(mhw_df_toolbox)[c(3:8)],"_toolbox")
    
     #ntl
@@ -97,14 +60,10 @@ library(WDI)
         pivot_longer(cols = starts_with("X"),
                     names_to = "year",
                     values_to = "ntl")
-
-        # Print the long format dataframe
-        glimpse(ntl_df)
         ntl_df$year <- as.numeric(gsub("X", "", ntl_df$year))
         names(ntl_df)[1] <- "gridcell_id"
         ntl_df$sensor <- "VIIRS"  
-        
-        glimpse(ntl_df_pre2013)
+
         ntl_df_pre2013 <- ntl_df_pre2013[,-c(1)]
         names(ntl_df_pre2013) <- c("gridcell_id","id","year","ntl")
         ntl_df_pre2013$sensor <- "DMSP"    
@@ -113,19 +72,13 @@ library(WDI)
 
     ntl_df <- rbind(ntl_df,ntl_df_pre2013)
     mcn <- merge(ntl_df,mhw_df,by=c("gridcell_id","year"),all=TRUE)
-    glimpse(mcn)
     mcn <- merge(mcn,mhw_df_toolbox,by=c("gridcell_id","year"),all=TRUE)
     
-
-    glimpse(sst_bins)
-    
-    glimpse(mcn)
     
     any(table(mcn$unique_id)>1)
     mcn <- merge(mcn,sst_bins,by=c("gridcell_id","year"),all=TRUE)
 
     
-    glimpse(sst_anom_bins)
     mcn <- merge(mcn,sst_anom_bins,by=c("gridcell_id","year"),all=TRUE)
     mcn <- mcn[,-which(names(mcn) %in% c("X.x","X.y"))]
 
@@ -143,33 +96,63 @@ library(WDI)
     names(mangrove_df_full)[2] <- "gridcell_id"
     mangrove_df <- mangrove_df_full
     # Group the data by gridcell_id
-        df_mangroves_grouped <- mangrove_df %>%
-        arrange(gridcell_id,year)  %>% group_by(gridcell_id)
-         # Ensure the data is sorted by year
 
-        glimpse(df_mangroves_grouped)
+        mangrove_df$holes <- (mangrove_df$holes + 2)
+        mangrove_df$holes_size <- mangrove_df$h_area / mangrove_df$holes
+        #hist(mangrove_df$holes_size)
+        mangrove_df$gap_density <- (mangrove_df$holes) / mangrove_df$mangrove_area
         
-        # Calculate the annual change in mangrove cover percentage
-        df_mangroves_change <- df_mangroves_grouped %>%
-        mutate(annual_area_change =mangrove_area / dplyr::lag(mangrove_area)-1)
-
-        glimpse(df_mangroves_change)
-
-        df_mangroves_change <- df_mangroves_change %>%
-        mutate(annual_np_change =np / dplyr::lag(np)-1)
-
-        df_mangroves_change$patch_size <- df_mangroves_change$mangrove_area / df_mangroves_change$np
+        # mangrove_df %>% filter(is.finite(gap_density)) %>% select(gap_density) %>% min()
+        # mangrove_df %>% filter(is.finite(holes )) %>% select(holes) %>% hist()
+        # mangrove_df %>% filter(is.finite(holes), holes <0 ) %>% group_by(gridcell_id) %>% slice(1) %>% select(mangrove_area,year,gridcell_id)
         
-        df_mangroves_change <- df_mangroves_change %>%
-        mutate(annual_patchsize_change = patch_size / dplyr::lag(patch_size)-1)
+        # ggplot(mangrove_df[which(mangrove_df$holes<0),])+
+        # geom_point(aes(x=holes,y=mangrove_area))
+        # #mangrove_df %>% filter(is.finite(holes )) %>% select(mangrove_area) %>% min()
+        
+        # min(mangrove_df$gap_density,na.rm=TRUE)
+        
+        df_mangroves_change <- mangrove_df %>%
+        arrange(gridcell_id,year)  %>% group_by(gridcell_id) %>%
+        mutate(holes_size  = h_area/ holes,
+                patch_size = mangrove_area / np,
+                lag_pafrac=dplyr::lag(pafrac),
+                lag_np=dplyr::lag(np),
+                lag_holes=dplyr::lag(holes),
+                lag_holes_size=lag(holes_size),
+                lag_gap_density=lag(gap_density),
+                lag2_gap_density=lag(gap_density,2),
+                lag3_gap_density=lag(gap_density,3)) %>% 
+        mutate(annual_area_change =mangrove_area / dplyr::lag(mangrove_area)-1,
+                annual_np_change =np / dplyr::lag(np)-1,
+                annual_patchsize_change = patch_size / dplyr::lag(patch_size)-1,
+                annual_gap_density_change = gap_density / dplyr::lag(gap_density)-1,
+                annual_lag_gap_density_change = lag_gap_density / dplyr::lag(lag_gap_density)-1,
+                annual_lag2_gap_density_change = lag2_gap_density / dplyr::lag(lag2_gap_density)-1,
+                annual_holes_change = holes / dplyr::lag(holes)-1,
+                annual_holesize_change = holes_size / dplyr::lag(holes_size)-1)
+        
+        # # Calculate the annual change in mangrove cover percentage
+        # df_mangroves_change <- df_mangroves_grouped %>%
+        # mutate(annual_area_change =mangrove_area / dplyr::lag(mangrove_area)-1)
 
-        df_mangroves_change <- df_mangroves_change %>%
-        mutate(annual_holes_change = holes / dplyr::lag(holes)-1)
+        # glimpse(df_mangroves_change)
+
+        # df_mangroves_change <- df_mangroves_change %>%
+        # mutate(annual_np_change =np / dplyr::lag(np)-1)
+
+        # df_mangroves_change$patch_size <- df_mangroves_change$mangrove_area / df_mangroves_change$np
+        
+        # df_mangroves_change <- df_mangroves_change %>%
+        # mutate(annual_patchsize_change = patch_size / dplyr::lag(patch_size)-1)
+
+        #df_mangroves_change <- df_mangroves_change %>%
+        #mutate(annual_holes_change = holes / dplyr::lag(holes)-1)
 
         # Print the dataset with annual change
         glimpse(df_mangroves_change)
 
-        df_mangroves_change[which(df_mangroves_change$year %in% c(1996,2007,2015)),which(names(df_mangroves_change) %in% c("annual_area_change","annual_np_change","annual_patchsize_change"))] <-NA #Because the data has gaps
+        df_mangroves_change[which(df_mangroves_change$year %in% c(1996,2007,2015)),which(names(df_mangroves_change) %in% c("annual_area_change","annual_np_change","annual_patchsize_change","annual_lag3_gap_density_change","annual_lag2_gap_density_change","annual_lag_gap_density_change","annual_gap_density_change","annual_holesize_change"))] <-NA #Because the data has gaps
 
 
         
@@ -328,12 +311,12 @@ library(WDI)
     mcn3$mhw[is.na(mcn3$mhw)] <- 0
     mcn3$mhw_INT <- mcn3$mhw_int
     mcn3$mhw_INT_anom <- mcn3$mhw_int_anom
-    mcn3$mhw_INT_freq <- mcn3$mhw_int_freq
-    mcn3$mhw_INT_dur <- mcn3$mhw_int_dur
+    mcn3$mhw_FREQ <- mcn3$mhw_freq
+    mcn3$mhw_DUR <- mcn3$mhw_dur
     mcn3$mhw_INT[mcn3$mhw==0] <- 0
     mcn3$mhw_INT_anom[mcn3$mhw==0] <- 0
-    mcn3$mhw_INT_freq[mcn3$mhw==0] <- 0
-    mcn3$mhw_INT_dur[mcn3$mhw==0] <- 0
+    mcn3$mhw_FREQ[mcn3$mhw==0] <- 0
+    mcn3$mhw_DUR[mcn3$mhw==0] <- 0
     #mcn3$mhw_int_anom[mcn3$mhw==0] <- 0
     #mcn3$mhw_int_freq[mcn3$mhw==0] <- 0
     #mcn3$mhw_int_dur[mcn3$mhw==0] <- 0
@@ -439,7 +422,6 @@ library(WDI)
 
 
     glimpse(mcn4)
-    glimpse(mcn4) 
     #glimpse(sst_anom_bins_hr01)
     #mcn4 <- merge(mcn4,sst_anom_bins_hr01,by=c("gridcell_id","year"),all=TRUE)
     #mcn4 <- merge(mcn4,sst_anom_bins_mr05,by=c("gridcell_id","year"),all=TRUE)
@@ -447,7 +429,8 @@ library(WDI)
     #mcn4 <- mcn4[,-which(names(mcn4) %in% c("X","X.x","X.y"))] 
 
     
-    mcn4$logGDPpc <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)
+    mcn4$logGDPpc <- log(mcn4$Sum_GDP/mcn4$Population_Count)
+    mcn4$logGDPpc_50 <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)
     
     glimpse(sst_hottest)
     glimpse(mcn4)
@@ -465,21 +448,33 @@ library(WDI)
 
     
     mcn4 <- merge(mcn4,mean_hottest,by="gridcell_id",all=T)
+
+    mean_dry <- aggregate(Mean_Precipitation~gridcell_id,FUN="mean",data=mcn4[which(mcn4$year %in% c(1990:2022)),])
+    glimpse(mean_dry)
+    names(mean_dry)[2] <- "preci_mean0020"
+    q_dry <- quantile(mean_dry$preci_mean0020,probs=0.5)
+    mean_dry$dry <- 1
+    mean_dry$dry[which(mean_dry$preci_mean0020>q_dry)] <- 0
+    mcn4 <- merge(mcn4,mean_dry,by="gridcell_id",all=T)
+
     #mcn4 <- mcn4[,-which(names(mcn4) %in% c("X","X.x","X.y"))] 
     glimpse(mcn4)
 
-    mcn4$logSumGDP <- log(mcn4$Sum_GDP_50km)
-    mcn4$logPop <- log(mcn4$Population_Count_50km)
-    mcn4$logGDPpc <- log(mcn4$Sum_GDP_50km/mcn4$Population_Count_50km)
+    mcn4$logSumGDP_50 <- log(mcn4$Sum_GDP_50km)
+    mcn4$logSumGDP <- log(mcn4$Sum_GDP)
+    mcn4$logPop <- log(mcn4$Population_Count)
+    mcn4$logPop_50 <- log(mcn4$Population_Count_50km)
+    mcn4$logGDPpc <- log(mcn4$Sum_GDP/mcn4$Population_Count)
 
- #   write.csv(mcn4,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
-#mcn4 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv")
+  #
+#mcn4 <- write.csv(mcn4,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_15sept2023.csv")
 
 mcn2020 <- mcn4 %>% filter(year==2020) %>% filter(mangrove_area>0) %>% filter(is.na(R5))
                 unique(mcn2020$countrycode)
                 unique(paste0(mcn2020$Latitude,",",mcn2020$Longitude))
                 mcn4$latlot <- paste0(mcn4$Latitude,",",mcn4$Longitude)
                 mcn2020$latlot <- paste0(mcn2020$Latitude,",",mcn2020$Longitude)
+        mcn2020$latlot[which(is.na(mcn2020$R5))] 
                 names_latlon <- c("-19.1319486654551,-159.5"="ASIA","-17.1319435042391,-150.5"="ASIA",
                    "22.8683898685419,-89.5"= "LAM","14.8683770788442,-82.5000000000003"="LAM",
                     "13.8683707489465,-81.5000000000002"="LAM","12.8683635684406,-81.5"="LAM",
@@ -502,6 +497,92 @@ mcn4$R5[which(is.na(mcn4$R5))] <- mcn4$R5new[which(is.na(mcn4$R5))]
 head(mcn4)
 
 glimpse(mcn4)
+# ggplot(mcn4) + geom_point(aes(x=log(holes),y=log(h_area/holes),color=year,size=mangrove_area))
+
+# ggplot(mcn4) + geom_point(aes(x=annual_holes_change,y=annual_area_change,color=year,size=mangrove_area))+xlim(c(-1,1))+ylim(c(-1,1))
+
+
+#mcn4 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_aug2023.csv")
+
+mcn4<- mcn4 %>%
+  group_by(gridcell_id) %>%
+  mutate(mangrove_area_demeaned = mangrove_area - mean(mangrove_area, na.rm = TRUE),
+  sst_hot_demeaned = sst_hottest - mean(sst_hottest, na.rm = TRUE),
+  log_mangrove_area_demeaned = log(mangrove_area) - mean(log(mangrove_area), na.rm = TRUE),
+  mean_log_mangrove_area = mean(log(mangrove_area), na.rm = TRUE),
+  mean_mangrove_area = mean((mangrove_area), na.rm = TRUE)) %>%
+  ungroup()
+mcn4$logSal <- log(mcn4$Mean_Salinity)
+mcn4$preci <- mcn4$Mean_Precipitation
+mcn4$pop_50 <- mcn4$Population_Count_50km
+mcn4$pop <- mcn4$Population_Count
+mcn4$patch_density_avg <- mcn4$np/mcn4$mean_mangrove_area
+mcn4$gap_density_avg <- mcn4$holes/mcn4$mean_mangrove_area
+mcn4$lag_patch_density_avg <- mcn4$lag_np/mcn4$mean_mangrove_area
+mcn4$lag_gap_density_avg <- mcn4$lag_holes/mcn4$mean_mangrove_area
+
+
+#write.csv(mcn4,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_15sept2023.csv")
+#mcn4 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_sept2023.csv")
+glimpse(mcn4)
+glimpse(mangroves_gdp_buffers)
 
 
 
+reshaped_df <- mangroves_gdp_buffers %>%
+  unite("buffer_col", "buffer", sep = "buffer") %>% # Create column names like "gdp_bufferX"
+  spread(key = buffer_col, value = gdp) # Convert to wide format
+
+# View the reshaped dataframe
+head(reshaped_df)
+names(reshaped_df)[4:9] <- paste0("gdp",names(reshaped_df)[4:9])
+names(reshaped_df)[2] <- "gridcell_id"
+
+df_collapsed <- reshaped_df %>%
+  # Convert NA values to 0
+  mutate(across(c(gdp0, gdp10, gdp100, gdp300, gdp50, gdp500), ~replace(., is.na(.), 0))) %>%
+  # Group by gridcell_id and year and sum other columns
+  group_by(gridcell_id, year) %>%
+  summarise(
+    gdp0 = sum(gdp0),
+    gdp10 = sum(gdp10),
+    gdp50 = sum(gdp50),
+    gdp100 = sum(gdp100),
+    gdp300 = sum(gdp300),
+    gdp500 = sum(gdp500),
+    .groups = "drop" # Drop grouping for final result
+  ) %>%
+  # Convert 0 values back to NA
+  mutate(across(c(gdp0, gdp10, gdp50, gdp100, gdp300, gdp500), ~replace(., . == 0, NA)))
+
+glimpse(df_collapsed)
+df_collapsed %>% filter(gridcell_id==1)
+mcn5 <- merge(mcn4,df_collapsed,by=c("year","gridcell_id"),all=TRUE)
+glimpse(mcn5)
+ggplot(mcn5,aes(x=Sum_GDP_50km,y=gdp50))+geom_point()+geom_abline()
+
+write.csv(mcn5,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_15sept2023_buffers.csv")
+
+mcn <- mcn5
+non_char_df <- mcn %>% 
+  select(where(~ !is.character(.))) %>%  # Select non-character columns
+  names() %>%                            # Get column names
+  setdiff(., c("year", "countrycode"))   # Remove 'year' and 'countrycode' from the names
+
+
+char_df <- mcn %>% 
+  select_if(~ is.character(.)) %>% names()%>%                            # Get column names
+  setdiff(., c("year", "countrycode"))   # Remove 'year' and 'countrycode' from the names
+
+
+mcn_country <- mcn %>% filter(!is.na(countrycode)) %>%
+  group_by(countrycode, year) %>%
+  mutate(weights = exp(mean_mangrove_area) / sum(exp(mean_mangrove_area), na.rm=TRUE)) %>%
+  summarise(
+    mangrove_area = sum(mangrove_area, na.rm=TRUE),
+    across(all_of(non_char_df), ~sum(. * weights, na.rm=TRUE)),
+    across(all_of(char_df), first)
+  ) %>%
+  ungroup()
+
+write.csv(mcn_country,"C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mcn_country_15sept2023.csv")

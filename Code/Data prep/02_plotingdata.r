@@ -1351,18 +1351,18 @@ library(spatstat.utils)
         # ggsave("Figures/Draft/Bars_Line_Historial_SHORT.png",dpi=600)
 
         summary_dfs_total_sum[which(summary_dfs_total_sum$year==1996),-c(1)] <- 0
+        summary_dfs_total_median
         
         summary_dfs_total_sum$color <-" "
-        bars_sumsum_holes_short <- ggplot(summary_dfs_sum[which(summary_dfs_median$year %in%y_i ),])+
+        bars_sumsum_holes_short <- ggplot(summary_dfs_median[which(summary_dfs_median$year %in%y_i ),])+
                     geom_bar(aes(x=(year),y=holes_d_change,
                         fill=factor(R5)),stat="identity")+
                     xlab("Year")+ylab("Change in Number of \nGaps per Area")+
                     labs(fill=guide_legend("Region"))+
                     scale_fill_manual(values = color_vector)+
                     geom_hline(aes(yintercept=0),linetype="dashed")+
-                    #geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],aes(x=year,y=(holes_d_change)),color="white",linetype="dashed")+
-                    geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],
-                        aes(x=year,y=cumsum(holes_d_change),color=factor(color)),size=1.5)+
+                    #geom_line(data=summary_dfs_total_sum[which(summary_dfs_total_sum$year %in% y_i),],aes(x=year,y=cumsum(holes_d_change),color=factor(color)),size=1.5)+
+                    geom_line(data=summary_dfs_total_median[which(summary_dfs_total_median$year %in% y_i),],aes(x=year,y=cumsum(holes_d_change),color=factor(color)),size=1.5)+
                     scale_color_manual(values = c(" " = "indianred")) +
                     guides(fill=guide_legend(reverse = TRUE),color=guide_legend(title="Net Cumulative \nChange"))+
                     theme_bw() +theme(legend.position="bottom")+
