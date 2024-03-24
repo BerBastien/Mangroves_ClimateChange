@@ -23,6 +23,7 @@
 
     ## Map
     load(file="C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\data_slopes_gridcell.Rds") #data_slopes,
+    
     world <- ne_countries(scale = "medium", returnclass = "sf")
     world_robin <- st_transform(world, "+proj=robin")
     world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -30,6 +31,14 @@
 
     oceans <- read_sf("C:\\Users\\basti\\Box\\Data\\Oceans\\ne_50m_ocean.shp")
     oceans_robin <- st_transform(oceans, "+proj=robin")
+
+    # glimpse(data_slopes)
+    
+    # ggplot() +
+    #     geom_sf(data = data_slopes , mapping = aes( geometry = geom, color = slope_area), fill="white",  
+    #     size = 1000000, show.legend = TRUE, inherit.aes = FALSE) +
+    #     geom_sf(data = data_slopes %>% filter(gridcell_id %in% c(300,305,306,309)), mapping = aes(fill = slope_area, geometry = geom, color = slope_area), #color="white",  
+    #     size = 1000000, show.legend = TRUE, inherit.aes = FALSE) 
 
     mangrove_map_basemap <- ggplot() +
         #geom_sf(data = oceans_robin, fill = "gray20", alpha=0.7) +

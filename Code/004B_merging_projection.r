@@ -13,7 +13,7 @@
     preci_85 <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\projections\\preci_85.csv")
     sst_p <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\projections\\sst_projection85.csv")
     mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata.csv") %>% filter(!is.na(gridcell_id))
-
+    glimpse(mcn)
     glimpse(ssps)
     glimpse(ssps_pop)
     glimpse(ssps_gdp)
