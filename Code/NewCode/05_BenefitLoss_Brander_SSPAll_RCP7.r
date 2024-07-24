@@ -29,8 +29,20 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     scen_arealoss_perc_onlygdp <- scen_arealoss_perc_onlygdp[,which(names(scen_arealoss_perc_onlygdp) %in% names(scen_arealoss_perc_onlyCC))]
     scen_arealoss_perc_both <- scen_arealoss_perc_both[,which(names(scen_arealoss_perc_both) %in% names(scen_arealoss_perc_onlyCC))]
     scen_allforcings <- rbind(scen_arealoss_perc_onlyCC,scen_arealoss_perc_onlygdp,scen_arealoss_perc_both)
-    
 
+    glimpse(scen_allforcings)
+    library("dplyr")
+    scen_allforcings %>% filter(year==2030,countrycode=="MEX") %>% dplyr::select("gdppc2")
+    
+    grid_with_countries_ALL <- read.csv("Data/grid_with_specific_countries_FINAL.csv")
+    glimpse(grid_with_countries_ALL)
+
+    scen_allforcings <- scen_allforcings %>% left_join(grid_with_countries_ALL %>% mutate(gridcell_id=id),by="gridcell_id")
+    scen_allforcings$countrycode_old <-scen_allforcings$countrycode
+    scen_allforcings$countrycode <- scen_allforcings$iso_a3
+
+    any(scen_allforcings$countrycode=="NLD")
+    any(scen_allforcings$countrycode_old=="NLD")
 
     types <- c("provision", "cultural","regulation")
     b0_values <- list(b0_prov, b0_cult, b0_regu)
@@ -60,7 +72,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                     mutate(benefits_future = (mangrove_area+mangrove_area_future_loss) * benefits_perha * 100) 
     
     
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
     s <- scen_allforcings_allES %>% filter(year==2100 & forcing=="both" & gdppc3 > 0)
     
     benefit_perha_val <- scen_allforcings_allES %>% filter(!is.na(benefits_perha) & is.finite(benefits_perha) & year==2026 & forcing=="both") %>% select(benefits_perha) %>% unlist()
@@ -97,9 +109,10 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
         select(-ends_with("_onlygdp"))
 
         scen_allforcings_allES_dif <- result_df
-    
-    #write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp570.csv")
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp570.csv")
+    glimpse(scen_allforcings_allES_dif)
+    unique(scen_allforcings_allES_dif$countrycode)
+    write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp570.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp570.csv")
 
     scen_allforcings_allES_country <- scen_allforcings_allES %>% group_by(countrycode,year,forcing,type) %>%
                     summarise(
@@ -163,10 +176,10 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     labs(color="Region",shape="ES Type")+xlab("Mangrove Area Change (ha)")
 
     BenefitChange_2100
-    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp570_brander.csv")
+    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp570_brander_corrected_countries.csv")
     long_df<-diff_df_country_type
-    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp570.csv")
-
+    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp570_corrected_countries.csv")
+    unique(diff_df_country_type$countrycode)
     #ggsave("Figures/Draft2/BenefitChange_2100.png",dpi=600)    
 
     glimpse(diff_df_country_type)
@@ -180,7 +193,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                                     diff_mangrove_area_future_loss =diff_mangrove_area_future_loss[type=="provision"]) %>% ungroup()
     glimpse(diff_df_country)
     diff_country_total <- diff_df_country
-    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp570_brander.csv")
+    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp570_brander_corrected_countries.csv")
     
     
 
@@ -201,6 +214,10 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     scen_allforcings <- rbind(scen_arealoss_perc_onlyCC,scen_arealoss_perc_onlygdp,scen_arealoss_perc_both)
     
 
+    grid_with_countries_ALL <- read.csv("Data/grid_with_specific_countries_FINAL.csv")
+    scen_allforcings <- scen_allforcings %>% left_join(grid_with_countries_ALL %>% mutate(gridcell_id=id),by="gridcell_id")
+    scen_allforcings$countrycode_old <-scen_allforcings$countrycode
+    scen_allforcings$countrycode <- scen_allforcings$iso_a3
 
     types <- c("provision", "cultural","regulation")
     b0_values <- list(b0_prov, b0_cult, b0_regu)
@@ -230,7 +247,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                     mutate(benefits_future = (mangrove_area+mangrove_area_future_loss) * benefits_perha * 100) 
     
     
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
     s <- scen_allforcings_allES %>% filter(year==2100 & forcing=="both" & gdppc1 > 0)
     
     benefit_perha_val <- scen_allforcings_allES %>% filter(!is.na(benefits_perha) & is.finite(benefits_perha) & year==2026 & forcing=="both") %>% select(benefits_perha) %>% unlist()
@@ -263,8 +280,8 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
 
         scen_allforcings_allES_dif <- result_df
     
-    #write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp170.csv")
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp170.csv")
+    write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp170.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp170.csv")
 
     scen_allforcings_allES_country <- scen_allforcings_allES %>% group_by(countrycode,year,forcing,type) %>%
                     summarise(
@@ -301,9 +318,9 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     ) %>%
     ungroup()
 
-    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp170_brander.csv")
+    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp170_brander_corrected_countries.csv")
     long_df<-diff_df_country_type
-    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp170.csv")
+    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp170_corrected_countries.csv")
 
     #ggsave("Figures/Draft2/BenefitChange_2100.png",dpi=600)    
 
@@ -317,7 +334,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                                     Pop_Country_ssp1 = Pop_Country_ssp1[type=="provision"],
                                     diff_mangrove_area_future_loss =diff_mangrove_area_future_loss[type=="provision"]) %>% ungroup()
     diff_country_total <- diff_df_country
-    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp170_brander.csv")
+    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp170_brander_corrected_countries.csv")
     
     
 
@@ -337,6 +354,11 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     scen_arealoss_perc_both <- scen_arealoss_perc_both[,which(names(scen_arealoss_perc_both) %in% names(scen_arealoss_perc_onlyCC))]
     scen_allforcings <- rbind(scen_arealoss_perc_onlyCC,scen_arealoss_perc_onlygdp,scen_arealoss_perc_both)
     
+
+    grid_with_countries_ALL <- read.csv("Data/grid_with_specific_countries_FINAL.csv")
+    scen_allforcings <- scen_allforcings %>% left_join(grid_with_countries_ALL %>% mutate(gridcell_id=id),by="gridcell_id")
+    scen_allforcings$countrycode_old <-scen_allforcings$countrycode
+    scen_allforcings$countrycode <- scen_allforcings$iso_a3
 
 
     types <- c("provision", "cultural","regulation")
@@ -367,7 +389,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                     mutate(benefits_future = (mangrove_area+mangrove_area_future_loss) * benefits_perha * 100) 
     
     
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp270.csv")
     s <- scen_allforcings_allES %>% filter(year==2100 & forcing=="both" & gdppc2 > 0)
     
     benefit_perha_val <- scen_allforcings_allES %>% filter(!is.na(benefits_perha) & is.finite(benefits_perha) & year==2026 & forcing=="both") %>% select(benefits_perha) %>% unlist()
@@ -400,8 +422,8 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
 
         scen_allforcings_allES_dif <- result_df
     
-    #write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp270.csv")
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp270.csv")
+    write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp270.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp270.csv")
 
     scen_allforcings_allES_country <- scen_allforcings_allES %>% group_by(countrycode,year,forcing,type) %>%
                     summarise(
@@ -438,9 +460,9 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     ) %>%
     ungroup()
 
-    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp270_brander.csv")
+    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp270_brander_corrected_countries.csv")
     long_df<-diff_df_country_type
-    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp270.csv")
+    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp270_corrected_countries.csv")
 
     #ggsave("Figures/Draft2/BenefitChange_2100.png",dpi=600)    
 
@@ -454,7 +476,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                                     Pop_Country_ssp2 = Pop_Country_ssp2[type=="provision"],
                                     diff_mangrove_area_future_loss =diff_mangrove_area_future_loss[type=="provision"]) %>% ungroup()
     diff_country_total <- diff_df_country
-    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp270_brander.csv")
+    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp270_brander_corrected_countries.csv")
     
     
 
@@ -474,6 +496,10 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     scen_arealoss_perc_both <- scen_arealoss_perc_both[,which(names(scen_arealoss_perc_both) %in% names(scen_arealoss_perc_onlyCC))]
     scen_allforcings <- rbind(scen_arealoss_perc_onlyCC,scen_arealoss_perc_onlygdp,scen_arealoss_perc_both)
     
+    grid_with_countries_ALL <- read.csv("Data/grid_with_specific_countries_FINAL.csv")
+    scen_allforcings <- scen_allforcings %>% left_join(grid_with_countries_ALL %>% mutate(gridcell_id=id),by="gridcell_id")
+    scen_allforcings$countrycode_old <-scen_allforcings$countrycode
+    scen_allforcings$countrycode <- scen_allforcings$iso_a3
 
 
     types <- c("provision", "cultural","regulation")
@@ -504,7 +530,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                     mutate(benefits_future = (mangrove_area+mangrove_area_future_loss) * benefits_perha * 100) 
     
     
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
     s <- scen_allforcings_allES %>% filter(year==2100 & forcing=="both" & gdppc3 > 0)
     
     benefit_perha_val <- scen_allforcings_allES %>% filter(!is.na(benefits_perha) & is.finite(benefits_perha) & year==2026 & forcing=="both") %>% select(benefits_perha) %>% unlist()
@@ -537,8 +563,8 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
 
         scen_allforcings_allES_dif <- result_df
     
-    #write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp370.csv")
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
+    write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp370.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp370.csv")
 
     scen_allforcings_allES_country <- scen_allforcings_allES %>% group_by(countrycode,year,forcing,type) %>%
                     summarise(
@@ -575,9 +601,9 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     ) %>%
     ungroup()
 
-    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp370_brander.csv")
+    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp370_brander_corrected_countries.csv")
     long_df<-diff_df_country_type
-    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp370.csv")
+    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp370_corrected_countries.csv")
 
     #ggsave("Figures/Draft2/BenefitChange_2100.png",dpi=600)    
 
@@ -591,7 +617,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                                     Pop_Country_ssp3 = Pop_Country_ssp3[type=="provision"],
                                     diff_mangrove_area_future_loss =diff_mangrove_area_future_loss[type=="provision"]) %>% ungroup()
     diff_country_total <- diff_df_country
-    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp370_brander.csv")
+    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp370_brander_corrected_countries.csv")
     
     
 
@@ -612,6 +638,10 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     scen_arealoss_perc_both <- scen_arealoss_perc_both[,which(names(scen_arealoss_perc_both) %in% names(scen_arealoss_perc_onlyCC))]
     scen_allforcings <- rbind(scen_arealoss_perc_onlyCC,scen_arealoss_perc_onlygdp,scen_arealoss_perc_both)
     
+    grid_with_countries_ALL <- read.csv("Data/grid_with_specific_countries_FINAL.csv")
+    scen_allforcings <- scen_allforcings %>% left_join(grid_with_countries_ALL %>% mutate(gridcell_id=id),by="gridcell_id")
+    scen_allforcings$countrycode_old <-scen_allforcings$countrycode
+    scen_allforcings$countrycode <- scen_allforcings$iso_a3
 
 
     types <- c("provision", "cultural","regulation")
@@ -642,7 +672,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                     mutate(benefits_future = (mangrove_area+mangrove_area_future_loss) * benefits_perha * 100) 
     
     
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp470.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp470.csv")
     s <- scen_allforcings_allES %>% filter(year==2100 & forcing=="both" & gdppc4 > 0)
     
     benefit_perha_val <- scen_allforcings_allES %>% filter(!is.na(benefits_perha) & is.finite(benefits_perha) & year==2026 & forcing=="both") %>% select(benefits_perha) %>% unlist()
@@ -675,8 +705,8 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
 
         scen_allforcings_allES_dif <- result_df
     
-    #write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp470.csv")
-    #write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp470.csv")
+    write.csv(scen_allforcings_allES_dif,file="Data/projections/scen_allforcings_allES_dif_ssp470.csv")
+    write.csv(scen_allforcings_allES,file="Data/projections/scen_allforcings_allES_ssp470.csv")
 
     scen_allforcings_allES_country <- scen_allforcings_allES %>% group_by(countrycode,year,forcing,type) %>%
                     summarise(
@@ -713,9 +743,9 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
     ) %>%
     ungroup()
 
-    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp470_brander.csv")
+    write.csv(diff_df_country_type,file="Data/projections/diff_df_country_type_ssp470_brander_corrected_countries.csv")
     long_df<-diff_df_country_type
-    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp470.csv")
+    write.csv(long_df,file="Data/projections/benefit_loss_2types_ssp470_corrected_countries.csv")
 
     #ggsave("Figures/Draft2/BenefitChange_2100.png",dpi=600)    
 
@@ -729,7 +759,7 @@ b_ln.pop_regu <- metareg_es_regu[30,2]
                                     Pop_Country_ssp4 = Pop_Country_ssp4[type=="provision"],
                                     diff_mangrove_area_future_loss =diff_mangrove_area_future_loss[type=="provision"]) %>% ungroup()
     diff_country_total <- diff_df_country
-    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp470_brander.csv")
+    write.csv(diff_country_total,file="Data/projections/diff_country_total_ssp470_brander_corrected_countries.csv")
     
     
 

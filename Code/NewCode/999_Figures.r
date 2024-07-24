@@ -5,8 +5,11 @@
     library("colorspace")
     library("ggpubr")
     library("dplyr")
+    library("sf")
     library(ggrepel)
     library("ggplot2")
+    library("scales")
+    library("ggbreak")
     "%notin%" <- Negate("%in%")
 
     setwd("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange")
@@ -15,14 +18,13 @@
     mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_sept2023.csv")
     mcn_2020 <- mcn %>% filter(year==2020)
     
-    image(volcano, col = hcl.colors(12, "YlOrRd"))
-
 ## Map
 #### Gridcells
 ###### Slopes
 
     ## Map
     load(file="C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\data_slopes_gridcell.Rds") #data_slopes,
+    library(rnaturalearth)
     
     world <- ne_countries(scale = "medium", returnclass = "sf")
     world_robin <- st_transform(world, "+proj=robin")
@@ -32,13 +34,17 @@
     oceans <- read_sf("C:\\Users\\basti\\Box\\Data\\Oceans\\ne_50m_ocean.shp")
     oceans_robin <- st_transform(oceans, "+proj=robin")
 
-    # glimpse(data_slopes)
+    glimpse(data_slopes)
     
-    # ggplot() +
-    #     geom_sf(data = data_slopes , mapping = aes( geometry = geom, color = slope_area), fill="white",  
-    #     size = 1000000, show.legend = TRUE, inherit.aes = FALSE) +
-    #     geom_sf(data = data_slopes %>% filter(gridcell_id %in% c(300,305,306,309)), mapping = aes(fill = slope_area, geometry = geom, color = slope_area), #color="white",  
-    #     size = 1000000, show.legend = TRUE, inherit.aes = FALSE) 
+    ggplot() +
+        geom_sf(data = oceans_robin, fill = "black",alpha=0.85) +
+        geom_sf(data = world, color = "gray40", fill = "gray40") +
+        geom_sf(data = data_slopes , mapping = aes( geometry = geom), fill="white",  
+        size = 1000000, show.legend = TRUE, inherit.aes = FALSE) +
+        #geom_sf(data = data_slopes %>% filter(gridcell_id %in% c(300,305,306,309)), mapping = aes(fill = slope_area, geometry = geom, color = slope_area), #color="white",  
+        #geom_sf(data = data_slopes %>% filter(gridcell_id %in% c(181,182,197,289,323,324,329)), mapping = aes(fill = slope_area, geometry = geom, color = slope_area), #color="white",  
+        geom_sf(data = data_slopes %>% filter(gridcell_id %in% c(182)), mapping = aes(fill = slope_area, geometry = geom),color="red", #color="white",  
+        size = 1000000, show.legend = TRUE, inherit.aes = FALSE) 
 
     mangrove_map_basemap <- ggplot() +
         #geom_sf(data = oceans_robin, fill = "gray20", alpha=0.7) +
@@ -118,7 +124,7 @@
                     geom_bar(aes(x=(year),y=area_change_sum,
                         fill=factor(R5)),stat="identity")+
                     xlab("Year")+ylab("Area Change \n(km2)")+
-                    labs(fill=guide_legend("Region"))+
+                    #labs(fill=guide_legend("Region"))+
                     scale_fill_scico_d(palette = "batlow",end=0.9)+
                     geom_hline(aes(yintercept=0),linetype="dashed")+
                     geom_line(data=sum_area,aes(x=year,y=cumsum(area_change_sum),color=factor(color)),size=1.5)+
@@ -1065,6 +1071,7 @@ load(file="Data/projections/world_ne_with_coeffs_sspAll_RCP70.Rds")
 
 log_breaks <- pretty(log10(-world_ne_with_coeffs$coefficient_temp_USD_allSSPs_temp/10^6))[-c(1)]
     actual_breaks <- 10^(log_breaks)
+    library(scales)
 
 gg <- ggplot(data = world_ne_with_coeffs) +
   geom_sf(aes(fill = log10(-coefficient_temp_USD_allSSPs_temp/10^6))) +

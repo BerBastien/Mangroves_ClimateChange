@@ -3,12 +3,12 @@
 
         ## Read Data (start)
 
-        setwd("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange")
-        gpkg_file <- "C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\input\\grid_nighlights_spatial.gpkg"
         mcn <- read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\mangrove_alldata_sept2023.csv")
         
                         scen <-    read.csv("C:\\Users\\basti\\Documents\\GitHub\\Mangroves_ClimateChange\\Data\\projections\\scen_all_ssps.csv")
                         glimpse(scen)
+                        scen %>% filter(gridcell_id==337, year ==2030)
+                        glimpse(gpkg_file )
                         load("Models/Round2/pref_area_model.RData")
                         load(file="Models/Round2/sq_estimate_sst_area.RData") 
                         
